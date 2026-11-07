@@ -403,45 +403,73 @@ button:focus-visible, input:focus-visible, [tabindex]:focus-visible { outline: 3
 #rvClose { margin-left: auto; }
 body.review-open .end-actions { bottom: calc(var(--safe-bottom) + 170px); }
 
-/* ---------- Language gate ---------- */
+/* ---------- Language gate: names over the sky, buttons over the snow, the doors behind ---------- */
 .gate {
   position: fixed; inset: 0; z-index: 30;
-  display: flex; align-items: center; justify-content: center;
-  padding: calc(var(--safe-top) + 16px) 16px calc(var(--safe-bottom) + 16px);
+  display: flex; flex-direction: column; align-items: center; justify-content: space-between;
+  padding: calc(var(--safe-top) + 3vh) 16px calc(var(--safe-bottom) + 2vh);
+  text-align: center;
+  transition: opacity 0.45s ease, visibility 0.45s;
+}
+.gate.hide { opacity: 0; visibility: hidden; }
+/* Without the doors (a link that skips them, or the pictures failed): the film's first frame, softened */
+html:not(.door-on) .gate {
   background: rgba(214, 228, 240, 0.35);
   -webkit-backdrop-filter: blur(14px) saturate(1.1);
   backdrop-filter: blur(14px) saturate(1.1);
-  transition: opacity 0.7s ease, visibility 0.7s;
 }
-.gate.hide { opacity: 0; visibility: hidden; }
-.gate-card {
-  width: min(380px, 100%);
-  padding: 26px 22px 18px; border-radius: 22px;
-  background: rgba(250, 252, 254, 0.88);
-  border: 1px solid rgba(255, 255, 255, 0.9);
-  box-shadow: 0 18px 50px rgba(23, 48, 77, 0.18);
-  text-align: center;
-}
-.gate-eyebrow { margin: 0 0 12px; font: 600 12px/1.3 var(--sans); color: var(--ink-soft); letter-spacing: 0.02em; }
-.gate-names { margin: 0; font: 500 30px/1.2 var(--serif); }
+.gate-top { text-shadow: 0 0 16px rgba(255, 255, 255, 0.85), 0 1px 0 rgba(255, 255, 255, 0.6); }
+.gate-eyebrow { margin: 0 0 8px; font: 600 12px/1.3 var(--sans); color: var(--ink-soft); letter-spacing: 0.02em; }
+.gate-names { margin: 0; font: 500 clamp(26px, 4.2vh, 36px)/1.15 var(--serif); }
 .gate-names span { display: block; }
-.gate-zh { margin-top: 4px; font-size: 26px; letter-spacing: 0.08em; }
-.gate-date { margin: 10px 0 18px; font: 600 15px/1 var(--sans); color: var(--ink-soft); letter-spacing: 0.08em; }
-.gate-prompt { margin: 0 0 10px; font: 500 15px/1.4 var(--sans); }
-.gate-buttons { display: flex; flex-direction: column; gap: 10px; }
-.gate-buttons .btn { width: 100%; min-height: 50px; font-size: 17px; }
+.gate-zh { margin-top: 3px; font-size: clamp(19px, 2.8vh, 25px); letter-spacing: 0.1em; }
+.gate-date { margin: 8px 0 0; font: 600 12px/1 var(--sans); letter-spacing: 0.3em; }
+.gate-bottom { width: min(400px, 100%); text-shadow: 0 0 10px rgba(255, 255, 255, 0.95), 0 0 2px rgba(255, 255, 255, 0.9); }
+html:not(.door-on) .gate-bottom {
+  padding: 16px 18px 8px; border-radius: 22px;
+  background: rgba(250, 252, 254, 0.88); border: 1px solid rgba(255, 255, 255, 0.9);
+  box-shadow: 0 18px 50px rgba(23, 48, 77, 0.18);
+}
+.gate-prompt { margin: 0 0 8px; font: 600 14px/1.4 var(--sans); }
+.gate-buttons { display: flex; justify-content: center; gap: 10px; }
+.gate-buttons .btn { flex: 1 1 0; max-width: 180px; min-height: 50px; font-size: 17px; text-shadow: none; }
 .gate-sound {
   display: flex; align-items: center; justify-content: center; gap: 6px;
-  margin: 14px 0 0; font: 500 13px/1.35 var(--sans); color: var(--ink-soft);
+  margin: 10px 0 0; font: 500 13px/1.35 var(--sans);
 }
 .gate-sound svg { width: 18px; height: 18px; flex: none; }
 .gate-motion {
   display: inline-flex; align-items: center; gap: 10px;
-  margin-top: 6px; min-height: 44px;
-  font: 500 15px/1.3 var(--sans); cursor: pointer;
+  min-height: 40px; font: 500 14px/1.3 var(--sans); cursor: pointer;
 }
-.gate-motion input { width: 22px; height: 22px; accent-color: var(--ink); }
-.gate-status { margin: 4px 0 0; min-height: 1.3em; font: 500 13px/1.3 var(--sans); color: var(--ink-soft); }
+.gate-motion input { width: 20px; height: 20px; accent-color: var(--ink); }
+.gate-status { margin: 0; min-height: 1.3em; font: 500 13px/1.3 var(--sans); color: var(--ink-soft); }
+/* Short screens (a phone held sideways): the buttons say what to do, so the small print goes */
+@media (max-height: 520px) {
+  .gate { padding-top: calc(var(--safe-top) + 10px); padding-bottom: calc(var(--safe-bottom) + 6px); }
+  .gate-eyebrow, .gate-prompt { display: none; }
+  .gate-names { font-size: 24px; }
+  .gate-zh { font-size: 17px; }
+  .gate-date { margin-top: 5px; }
+  .gate-buttons .btn { min-height: 44px; font-size: 16px; }
+  .gate-sound { margin-top: 6px; }
+  .gate-motion { min-height: 36px; }
+}
+
+/* ---------- The entrance: glass doors in front of the film (see invite.js) ---------- */
+.door { position: fixed; inset: 0; overflow: hidden; opacity: 0; transition: opacity 0.4s ease; }
+.door.ready { opacity: 1; }
+.door[hidden] { display: none; }
+.door-cam { position: absolute; inset: 0; will-change: transform, opacity; }
+.door-backdrop { position: absolute; inset: 0; background-position: center; background-size: cover; display: none; }
+.door.wide .door-backdrop { display: block; }
+.door-scene { position: absolute; }
+.door-scene > img, .door-leaf { position: absolute; user-select: none; -webkit-user-select: none; -webkit-user-drag: none; }
+.door-scene > img { inset: 0; width: 100%; height: 100%; }
+.door-way { position: absolute; perspective-origin: 50% 50%; }
+.door-leaf { top: 0; height: 100%; }
+#doorL { left: 0; transform-origin: 0 50%; }
+#doorR { transform-origin: 100% 50%; }
 
 /* Reduced motion: no transitions or spinning either */
 html.reduced *, html.reduced *::before { transition: none !important; animation: none !important; }

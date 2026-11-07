@@ -1,6 +1,6 @@
 # Invitation preview: Aloysius Ng & Wei Meixiang · 17 July 2027
 
-**The guest flow:** visit the site → choose **English** or **简体中文** → the film plays → the invitation appears on the sheet of paper the film ends on → **Reply to invitation** opens the reply form.
+**The guest flow:** visit the site → choose **English** or **简体中文**, in front of a pair of glass doors → the doors swing open and the camera moves through them into the film → the invitation appears on the sheet of paper the film ends on → **Reply to invitation** opens the reply form.
 
 This is a preview:
 
@@ -25,22 +25,38 @@ This is a preview:
   - **Skip intro / 跳过开场** jumps to the finished card.
   - **Reply / 回复** jumps there and opens the form.
   - **EN / 中文** switches language at any time, including inside the form, and keeps what has been typed.
-- **When it ends:** **Watch again / 再看一次** replays the film.
+- **When it ends:** **Watch again / 再看一次** goes back to the closed doors, which open again by themselves.
 - **Reduce motion** (on the language screen; ticked automatically when the phone's own setting is on):
   - The film doesn't play; the finished card and Reply button appear straight away.
   - **Play film** remains available if the guest wants it.
 - **If the phone pauses the film** (for example when the guest switches apps), a **Continue** button appears.
 
+## The door entrance
+
+The language screen stands in front of a pair of glass doors in a snowy conservatory, and the film's first frame shows through their glass.
+
+- **On a language tap:** the doors swing inwards and the camera moves through the doorway. The film starts 0.8 s after the tap, on the way in, and its opening titles wait until the doors are through. The whole entrance takes about 2.7 s.
+- **Where the doors are skipped:**
+  - Reduce motion: the finished card appears straight away, as before.
+  - Edit links, review links (`?t=`, `?lang=`) and the photo editor.
+  - If the door pictures haven't arrived when the guest taps. The language screen then shows over the film's first frame, as it used to.
+- **Phones and computers:** on phones the picture fills the screen. On wider screens it fills the height, with a soft blurred copy either side.
+- **Files:** `media/door/` (about 270 KB), made by `tools/build_door.py` from the first and last frames of `Door-Opening-Transparent.gif`. The GIF itself (20 MB) is kept in `../references/`, which isn't published.
+  - The doors swing in the page itself, cut from the GIF's first frame, so they open exactly on the tap; the GIF's own animation isn't used.
+  - To use a sharper picture: `python3 -E -P tools/build_door.py NEW.gif media/door`. The page reads the new doorway from `media/door/door.js`.
+- **Picture quality:** the source picture is 470×836, so it is published at twice that size with softened edges. It is a little soft on phones; a larger original would make it sharper.
+- **The first trial** is in `../door-preview/` (not published). It can be deleted.
+
 ## The film
 
 | Time | What you see | Text |
 |---|---|---|
-| 0–5.5 s | Behind the couple, walking hand in hand towards the arch, lake and mountain | "Aloysius & Meixiang · invite you to their wedding" |
+| 0–5.5 s | Behind the couple, walking hand in hand towards the arch, lake and mountain | "Aloysius & Meixiang · invite you to their wedding", once the doors are through (about 1.6 s in) |
 | 5.5–7.7 s | The camera passes between them to the signing table | None |
 | 7.7–10 s | The camera settles on the blank sheet | The border draws itself, then the monogram and invitation text appear on the paper |
 | End | The finished card holds | **Reply to invitation** |
 
-All timings are in `invite.js` (`FADES`).
+All timings are in `invite.js` (`FADES`). The doors' timings are the `DOOR_` settings just above `playFromStart`.
 
 - **Phones:** the film fills the screen, cropped to keep the couple centred.
 - **The invitation** is laid onto the paper in perspective, and follows the paper while the camera is still moving.
@@ -157,6 +173,7 @@ python3 -E -P tools/build_media.py source/NEW-VIDEO.mp4 media
 - **Tested in headless Chrome:**
   - 390×844 and 375×667 phones, a 768×1024 tablet, an 844×390 landscape phone and a 1440×900 computer.
   - Real playback to the end, Skip, the Reply shortcut and reduced motion.
+  - The door entrance with real taps on phone, tablet, computer and sideways sizes: the opening, Watch again, Skip during the doors, Reduce motion, and links that skip the language screen.
   - Every step of the form, including a language switch mid-form.
   - Opening the page straight from disk.
   - With the reply server, `npm run test:browser` in `../backend` covers:

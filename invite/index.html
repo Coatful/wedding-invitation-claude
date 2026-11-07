@@ -17,6 +17,20 @@
   <img id="posterImg" class="still" alt="">
   <img id="finalImg" class="still" alt="" hidden>
 </div>
+<!-- The entrance: glass doors in front of the film (media/door, made by tools/build_door.py). The glass shows
+     the film's first frame; choosing a language swings the doors open and the camera moves through into the film. -->
+<div id="door" class="door" aria-hidden="true" hidden>
+  <div id="doorCam" class="door-cam">
+    <div id="doorBackdrop" class="door-backdrop"></div>
+    <div id="doorScene" class="door-scene">
+      <img id="doorPic" alt="" draggable="false">
+      <div id="doorWay" class="door-way">
+        <img id="doorL" class="door-leaf" alt="" draggable="false">
+        <img id="doorR" class="door-leaf" alt="" draggable="false">
+      </div>
+    </div>
+  </div>
+</div>
 <!-- The music: starts when a language is chosen and loops (media/soundtrack.m4a, made by tools/build_music.py) -->
 <audio id="music" preload="none" loop></audio>
 
@@ -159,13 +173,15 @@
 </div>
 
 <div id="gate" class="gate" role="dialog" aria-modal="true" aria-labelledby="gateTitle">
-  <div class="gate-card">
+  <div class="gate-top">
     <p class="gate-eyebrow"><span lang="en">Invitation preview</span> · <span lang="zh-Hans">请柬预览</span></p>
     <h1 id="gateTitle" class="gate-names">
       <span lang="en">Aloysius &amp; Meixiang</span>
       <span lang="zh-Hans" class="gate-zh">黄胤杰 与 魏美翔</span>
     </h1>
     <p class="gate-date">17 · 07 · 2027</p>
+  </div>
+  <div class="gate-bottom">
     <p class="gate-prompt"><span lang="en">Choose your language</span><span aria-hidden="true"> · </span><span lang="zh-Hans">请选择语言</span></p>
     <div class="gate-buttons">
       <button class="btn btn-primary" type="button" data-lang="en" lang="en">English</button>
@@ -184,6 +200,7 @@
 </div>
 
 <script src="media/manifest.js"></script>
+<script src="media/door/door.js"></script>
 <script src="card-photos.js"></script>
 <script src="invite.js"></script>
 </body>

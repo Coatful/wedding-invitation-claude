@@ -94,6 +94,7 @@ The browser walk-through checks the real page:
 - **After 17 June:** the read-only view, and "Replies have closed" when that date is set.
 - **Broken link:** a message on the language screen explains it.
 - **From disk:** the page still works as a preview.
+- **The door entrance:** the doors behind the language screen, the film starting as they open, the titles waiting until they're through, and Watch again bringing them back.
 
 ## Settings (`wrangler.jsonc` → `vars`)
 

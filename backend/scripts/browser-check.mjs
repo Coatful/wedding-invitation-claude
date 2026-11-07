@@ -189,6 +189,26 @@ try {
   await js('__t.click("saveBtn")');
   await until('__t.shown("rsvpDone")', 'file done');
   check('preview banner from disk', (await js('__t.shown("doneBanner") && __t.text("doneBanner")')) === 'Preview only · nothing was sent or saved');
+
+  // 11. The entrance: the doors stand behind the language screen; a language tap swings them open, the film
+  //     plays on the way through, and its titles wait until the doors are through. Watch again comes back to them.
+  await go(BASE + '/');
+  await until('document.getElementById("door").classList.contains("ready")', 'door pictures');
+  check('doors behind the language screen', await js('!document.getElementById("door").hidden && document.getElementById("film").paused'));
+  await shot('11-doors');
+  await js('document.querySelector("#gate [data-lang=en]").click()');
+  await until('!document.getElementById("film").paused', 'film starting behind the doors', 4000);
+  check('film plays as the doors open, titles wait', await js('!document.getElementById("door").hidden && +getComputedStyle(document.getElementById("introNames")).opacity === 0'));
+  await shot('11-doors-opening');
+  await until('document.getElementById("door").hidden', 'doors gone', 5000);
+  await until('+getComputedStyle(document.getElementById("introNames")).opacity > 0.5', 'titles after the doors', 4000);
+  check('titles after the doors', true);
+  await js('__t.click("skipBtn")');
+  await until('!document.getElementById("replayBtn").hidden', 'card after skipping');
+  await js('__t.click("replayBtn")');
+  check('Watch again comes back to the closed doors', await js('!document.getElementById("door").hidden && document.getElementById("film").currentTime === 0'));
+  await until('!document.getElementById("film").paused', 'film after Watch again', 4000);
+  check('the doors open again by themselves', true);
 } catch (e) {
   results.push('FAIL ' + e.message);
   await shot('error').catch(() => {});

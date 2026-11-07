@@ -231,7 +231,8 @@
     'email', 'emailNote', 'emailError', 'toReview', 'rsvpReview', 'reviewTitle', 'reviewList', 'reviewEmail',
     'privacyNote', 'backToEdit', 'saveBtn', 'rsvpDone', 'doneBanner', 'doneTitle', 'doneLead', 'doneList',
     'doneNext', 'editAgain', 'doneClose', 'gate', 'reduceMotion', 'loadStatus', 'website', 'saveError', 'doneMeta',
-    'rsvpNotice', 'noticeTitle', 'noticeText', 'noticeList', 'noticeClose', 'emailBlock', 'music', 'cPhotos'
+    'rsvpNotice', 'noticeTitle', 'noticeText', 'noticeList', 'noticeClose', 'emailBlock', 'music', 'cPhotos',
+    'door', 'doorCam', 'doorBackdrop', 'doorScene', 'doorPic', 'doorWay', 'doorL', 'doorR'
   ].concat(CARD_IDS).forEach(function (id) { ui[id] = $(id); });
 
   // Shown on the language screen, so in both languages at once
@@ -248,8 +249,8 @@
   var EDIT = params.get('layout') === 'edit' &&
     (location.protocol === 'file:' || /^(localhost|127\.0\.0\.1|\[::1\])$/.test(location.hostname));
   var state = {
-    started: false, reduced: false, lang: 'en', phase: 'gate',   // gate → playing → ended
-    soundOn: true, ownPause: false, startT: 0, frameT: -1,
+    started: false, reduced: false, lang: 'en', phase: 'gate',   // gate → door → playing → ended
+    soundOn: true, ownPause: false, startT: 0, frameT: -1, doorUntil: 0,
     review: false, scrubbing: false, layoutV: 0
   };
   // mode 'new' until saved; then 'edit' with a private credential (kept in memory only, never stored)
@@ -587,7 +588,8 @@
   function render(now) {
     var t = filmTime(), playing = state.phase === 'playing';
     var gain = smooth((now - state.startT) / 900);
-    var a1 = playing ? fade(t, FADES.introNames) * gain : 0, a2 = playing ? fade(t, FADES.introLine) : 0;
+    var dg = state.doorUntil ? smooth((now - state.doorUntil) / 700) : 1;     // the titles wait for the doors
+    var a1 = playing ? fade(t, FADES.introNames) * gain * dg : 0, a2 = playing ? fade(t, FADES.introLine) * dg : 0;
     setOpacity('introNames', a1);
     setOpacity('introLine', a2);
     ui.intro.style.setProperty('--scrim', Math.max(a1, a2).toFixed(3));
@@ -685,6 +687,109 @@
     }
   });
 
+  // ---------- The entrance: glass doors in front of the film (media/door, made by tools/build_door.py) ----------
+  // While the language screen is up, the film's first frame shows through the doors' glass. Choosing a language
+  // swings the doors in, the camera moves through the doorway, and the film starts on the way in; its opening
+  // titles wait until the doors are through. Links that skip the language screen skip the doors too.
+  var DOOR = window.DOOR || null;
+  var DOOR_OPEN_DEG = 78;       // how far each door swings in
+  var DOOR_SWING_MS = 1900;     // the swing
+  var DOOR_PUSH_DELAY = 550;    // the camera starts moving while the doors open...
+  var DOOR_PUSH_MS = 2100;      // ...and passes through the doorway in this time
+  var DOOR_FILM_AT = 800;       // the film starts this long after the tap
+  var door = { ready: false, anims: [], timers: [], push: 3 };
+
+  function loadDoor() {
+    if (!DOOR || !ui.doorCam.animate) return;
+    document.documentElement.classList.add('door-on');
+    var w = DOOR.x1 - DOOR.x0, split = (DOOR.mid - DOOR.x0) / w * 100, s = ui.doorWay.style;
+    s.left = (DOOR.x0 / DOOR.w * 100) + '%';
+    s.top = (DOOR.y0 / DOOR.h * 100) + '%';
+    s.width = (w / DOOR.w * 100) + '%';
+    s.height = ((DOOR.y1 - DOOR.y0) / DOOR.h * 100) + '%';
+    ui.doorL.style.width = split + '%';
+    ui.doorR.style.left = split + '%';
+    ui.doorR.style.width = (100 - split) + '%';
+    ui.doorBackdrop.style.backgroundImage = 'url(media/door/door-backdrop.jpg)';
+    show(ui.door, true);
+    layoutDoor();
+    Promise.all([[ui.doorPic, 'door-scene.webp'], [ui.doorL, 'door-left.webp'], [ui.doorR, 'door-right.webp']].map(function (p) {
+      return new Promise(function (ok, bad) {
+        p[0].onload = ok;
+        p[0].onerror = bad;
+        p[0].src = 'media/door/' + p[1];
+        if (p[0].complete && p[0].naturalWidth) ok();
+      });
+    })).then(function () {
+      if (state.started) return;              // the guest chose a language before the doors arrived
+      door.ready = true;
+      ui.door.classList.add('ready');
+    }, function () {                          // no doors: the language screen goes back to its plain look
+      doorGone();
+      document.documentElement.classList.remove('door-on');
+    });
+  }
+  // Phones: the picture fills the screen. Wider screens: it fills the height, with a soft backdrop either side.
+  function layoutDoor() {
+    if (!DOOR || ui.door.hidden) return;
+    var W = ui.stage.clientWidth || window.innerWidth, H = ui.stage.clientHeight || window.innerHeight;
+    var fill = W / H <= 0.66, k = fill ? Math.max(W / DOOR.w, H / DOOR.h) : H / DOOR.h;
+    var sw = DOOR.w * k, sh = DOOR.h * k, left = (W - sw) / 2, top = (H - sh) / 2, st = ui.doorScene.style;
+    st.left = left + 'px'; st.top = top + 'px'; st.width = sw + 'px'; st.height = sh + 'px';
+    ui.door.classList.toggle('wide', !fill);
+    var mask = fill ? '' : 'linear-gradient(90deg, #000 ' + left.toFixed(1) + 'px, transparent ' + left.toFixed(1) +
+      'px, transparent ' + (left + sw).toFixed(1) + 'px, #000 ' + (left + sw).toFixed(1) + 'px)';
+    ui.doorBackdrop.style.webkitMaskImage = mask;    // the backdrop only fills the sides, so the glass still shows the film
+    ui.doorBackdrop.style.maskImage = mask;
+    var dl = left + DOOR.x0 * k, dt = top + DOOR.y0 * k, w = (DOOR.x1 - DOOR.x0) * k, h = (DOOR.y1 - DOOR.y0) * k;
+    ui.doorWay.style.perspective = Math.round(h * 1.9) + 'px';
+    // The camera heads for the middle of the doorway's straight part, far enough for the doorway to fill the screen.
+    var spring = dt + w / 2, ox = dl + w / 2, oy = spring + (dt + h - spring) / 2;
+    ui.doorCam.style.transformOrigin = ox.toFixed(1) + 'px ' + oy.toFixed(1) + 'px';
+    door.push = 1.05 * Math.max(Math.max(ox, W - ox) / (w / 2), oy / (oy - spring), (H - oy) / (dt + h - oy));
+  }
+  function openDoor() {
+    var swing = { duration: DOOR_SWING_MS, easing: 'cubic-bezier(.45, 0, .2, 1)', fill: 'forwards' };
+    door.anims = [
+      ui.doorL.animate([{ transform: 'rotateY(0deg)' }, { transform: 'rotateY(' + DOOR_OPEN_DEG + 'deg)' }], swing),
+      ui.doorR.animate([{ transform: 'rotateY(0deg)' }, { transform: 'rotateY(' + -DOOR_OPEN_DEG + 'deg)' }], swing),
+      ui.doorCam.animate([
+        { transform: 'scale(1)', opacity: 1, offset: 0 },
+        { transform: 'scale(' + (1 + (door.push - 1) / 2).toFixed(3) + ')', opacity: 1, offset: 0.5 },
+        { transform: 'scale(' + door.push.toFixed(3) + ')', opacity: 0, offset: 1 }
+      ], { duration: DOOR_PUSH_MS, delay: DOOR_PUSH_DELAY, easing: 'cubic-bezier(.5, 0, .75, .8)', fill: 'forwards' })
+    ];
+    state.doorUntil = performance.now() + DOOR_PUSH_DELAY + DOOR_PUSH_MS - 250;
+    door.timers.push(setTimeout(playFromStart, DOOR_FILM_AT));
+    door.timers.push(setTimeout(doorGone, DOOR_PUSH_DELAY + DOOR_PUSH_MS + 50));
+  }
+  // Through the doors, or not wanted (skipped, reduced motion, a link straight to the card): stop and hide them.
+  function doorGone() {
+    door.timers.forEach(clearTimeout);
+    door.timers = [];
+    door.anims.forEach(function (a) { a.cancel(); });
+    door.anims = [];
+    show(ui.door, false);
+  }
+  // "Watch again": back to the closed doors, which open again by themselves.
+  function replay() {
+    if (!door.ready || state.reduced) { state.doorUntil = 0; playFromStart(); return; }
+    doorGone();
+    if (!video.paused) { state.ownPause = true; video.pause(); }
+    state.phase = 'door';
+    shown = {};
+    ui.finalImg.hidden = true;
+    ui.posterImg.classList.remove('gone');
+    show(ui.resumeBtn, false);
+    if (video.currentTime > 0) video.currentTime = 0;
+    show(ui.door, true);
+    layoutDoor();
+    lastQuad = '';
+    updateUI();
+    kick();
+    door.timers.push(setTimeout(openDoor, 500));
+  }
+
   // ---------- Playback ----------
   function playFromStart() {
     state.phase = 'playing';
@@ -707,6 +812,7 @@
     kick();
   }
   function showEnd() {
+    doorGone();
     state.phase = 'ended';
     ui.finalImg.hidden = false;
     ui.posterImg.classList.add('gone');
@@ -807,7 +913,11 @@
       seekTo(at);
     } else if (state.reduced) {
       showEnd();
+    } else if (door.ready) {                  // through the doors; the film starts on the way in
+      state.phase = 'door';
+      openDoor();
     } else {
+      doorGone();
       playFromStart();
     }
     try { ui.cNames.focus({ preventScroll: true }); } catch (e) { ui.cNames.focus(); }
@@ -1233,6 +1343,7 @@
     ui.rvShots.appendChild(b);
   });
   function seekTo(t) {
+    doorGone();
     if (!video.paused) { state.ownPause = true; video.pause(); }
     if (t >= END - 0.02) { showEnd(); return; }
     state.phase = 'playing';
@@ -1434,7 +1545,7 @@
   ui.soundBtn.addEventListener('click', function () { setSound(!state.soundOn); });
   ui.skipBtn.addEventListener('click', function () { skipToEnd(); ui.cNames.focus(); });
   ui.replyChip.addEventListener('click', function () { skipToEnd(); openReply(); });
-  ui.replayBtn.addEventListener('click', playFromStart);
+  ui.replayBtn.addEventListener('click', replay);
   ui.resumeBtn.addEventListener('click', function () {
     show(ui.resumeBtn, false);
     var p = video.play();
@@ -1446,7 +1557,7 @@
   var resizeTimer = 0;
   window.addEventListener('resize', function () {
     clearTimeout(resizeTimer);
-    resizeTimer = setTimeout(function () { if (state.started) layoutCard(); lastQuad = ''; kick(); }, 120);
+    resizeTimer = setTimeout(function () { layoutDoor(); if (state.started) layoutCard(); lastQuad = ''; kick(); }, 120);
   });
   if (document.fonts && document.fonts.ready) document.fonts.ready.then(function () { if (state.started) layoutCard(); });
 
@@ -1484,6 +1595,8 @@
     if (at !== null || lang) {
       begin(lang || 'en', at === null ? undefined : (at === 'end' ? END : clamp(parseFloat(at) || 0, 0, END)));
       if (reviewEnabled && at !== null) setReview(true);
+    } else {
+      loadDoor();                    // the language screen, with the doors behind it
     }
   }
 })();
