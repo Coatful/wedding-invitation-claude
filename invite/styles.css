@@ -63,6 +63,18 @@ button:focus-visible, input:focus-visible, [tabindex]:focus-visible { outline: 3
 .c-border .b-inner { fill: none; stroke: var(--paper-line); stroke-width: 0.55; }
 .c-border .b-orn { fill: var(--paper-accent); }
 .c-body { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; padding: 20px 16px; }
+
+/* Photos pasted on the card (card-photos.js); the words stay on top of them */
+.c-photos { position: absolute; inset: 0; }
+.c-photo {
+  position: absolute; margin: 0; padding: 1.1%;   /* % of the card's width: a thin white print border */
+  background: #fdfbf6; opacity: 0; transform-origin: 50% 50%;
+  box-shadow: 0 0.5px 1.5px rgba(22, 42, 70, 0.28), 0 3px 9px rgba(22, 42, 70, 0.16);
+}
+.c-photo img { display: block; width: 100%; aspect-ratio: 1 / 1; object-fit: cover; pointer-events: none; user-select: none; }
+.c-photo[hidden] { display: none; }
+/* Between the lower photos: set line breaks (rsvpLineStacked) */
+.card.has-photos .c-rsvp { white-space: pre; }
 .c-inner { width: 100%; text-align: center; transform-origin: 50% 50%; }
 .c-inner > * { opacity: 0; }
 
@@ -436,3 +448,37 @@ html.reduced *, html.reduced *::before { transition: none !important; animation:
 @media (prefers-reduced-motion: reduce) {
   .gate, .end-actions, .toast, .rsvp-sheet, .rsvp-backdrop, .stage .still { transition: none !important; }
 }
+
+/* ---------- Card photo layout editor (?layout=edit, only on this Mac) ---------- */
+.layout-editing .topbar, .layout-editing .end-actions, .layout-editing .intro { visibility: hidden; }
+.layout-editing.flat .stage { filter: saturate(0.5) brightness(0.5) blur(4px); }
+.layout-editing.flat .card { background: #f7f2e7; box-shadow: 0 12px 48px rgba(0, 0, 0, 0.4); }
+.layout-editing.flat .c-photo { pointer-events: auto; cursor: grab; touch-action: none; }
+.layout-editing.flat .c-photo:active { cursor: grabbing; }
+.layout-editing .c-photo.selected, .layout-editing .c-photo:focus-visible { outline: 2px solid #2f6fb3; outline-offset: 2px; }
+.ph-handle {
+  display: none; position: absolute; width: 18px; height: 18px; border-radius: 50%;
+  background: #2f6fb3; border: 2px solid #fff; box-shadow: 0 1px 3px rgba(0, 0, 0, 0.4); touch-action: none;
+}
+.layout-editing.flat .c-photo.selected .ph-handle { display: block; }
+.ph-resize { right: -10px; bottom: -10px; cursor: nwse-resize; }
+.ph-rotate { left: 50%; top: -34px; margin-left: -9px; cursor: grab; }
+.ph-rotate::after { content: ""; position: absolute; left: 50%; top: 16px; width: 2px; height: 16px; margin-left: -1px; background: #2f6fb3; }
+.layout-editor {
+  position: fixed; left: 50%; top: 8px; transform: translateX(-50%); z-index: 40;
+  width: min(760px, calc(100vw - 16px)); padding: 8px 12px; border-radius: 12px;
+  background: rgba(16, 32, 54, 0.94); color: #eef4fa; font: 500 13px/1.35 var(--sans);
+  box-shadow: 0 8px 30px rgba(0, 0, 0, 0.35);
+}
+.le-row { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 12px; }
+.le-row strong { font-size: 14px; }
+.le-shows { display: inline-flex; flex-wrap: wrap; gap: 4px 10px; }
+.le-row label { display: inline-flex; align-items: center; gap: 4px; cursor: pointer; }
+.le-tip { margin-top: 5px; color: #b9cbe0; font-size: 12px; }
+.le-buttons { margin-left: auto; display: flex; flex-wrap: wrap; gap: 6px; }
+.le-buttons button {
+  min-height: 32px; padding: 0 12px; border-radius: 16px; cursor: pointer;
+  border: 1px solid rgba(255, 255, 255, 0.35); background: transparent; color: #fff; font: 600 13px/1 var(--sans);
+}
+.le-buttons button.primary { background: #fff; color: #10203a; border-color: #fff; }
+.le-small { color: #ffd98a; }

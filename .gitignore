@@ -9,3 +9,5 @@
 .DS_Store
 # The music (commercial recordings) is deployed to the live site but not published in this public repository
 /invite/media/soundtrack.m4a
+# Source stills, original illustrations and video prompts: kept on this Mac only
+/references/

@@ -43,6 +43,7 @@
     cRsvp: [9.3, 9.95]
   };
   var CARD_IDS = ['cMono', 'cNames', 'cRequest', 'cDate', 'cPlace', 'cDetails', 'cRule', 'cRsvp'];
+  var PHOTO_FADES = [[8.8, 9.5], [9.0, 9.7], [9.2, 9.9], [9.4, 10.0]];   // the card photos settle onto the paper one by one
 
   // ---------- Copy (draft wording, to be approved) ----------
   var STR = {
@@ -57,6 +58,7 @@
       place: 'Shangri-La Singapore',
       details: '5 – 9 pm',
       rsvpLine: 'Kindly reply by 17 June 2027',
+      rsvpLineStacked: 'Kindly reply\nby 17 June 2027',     // between the lower card photos
       skip: 'Skip intro', replay: 'Watch again', play: 'Play film', replyChip: 'Reply', resume: '▶ Continue',
       soundOff: 'Turn sound off', soundOn: 'Turn sound on',
       reply: 'Reply to invitation',
@@ -134,6 +136,7 @@
       place: '新加坡香格里拉大酒店',
       details: '下午5时至晚上9时',
       rsvpLine: '敬请于2027年6月17日前回复',
+      rsvpLineStacked: '敬请于\n2027年6月17日\n前回复',
       skip: '跳过开场', replay: '再看一次', play: '播放影片', replyChip: '回复', resume: '▶ 继续播放',
       soundOff: '关闭声音', soundOn: '打开声音',
       reply: '回复出席情况',
@@ -228,7 +231,7 @@
     'email', 'emailNote', 'emailError', 'toReview', 'rsvpReview', 'reviewTitle', 'reviewList', 'reviewEmail',
     'privacyNote', 'backToEdit', 'saveBtn', 'rsvpDone', 'doneBanner', 'doneTitle', 'doneLead', 'doneList',
     'doneNext', 'editAgain', 'doneClose', 'gate', 'reduceMotion', 'loadStatus', 'website', 'saveError', 'doneMeta',
-    'rsvpNotice', 'noticeTitle', 'noticeText', 'noticeList', 'noticeClose', 'emailBlock', 'music'
+    'rsvpNotice', 'noticeTitle', 'noticeText', 'noticeList', 'noticeClose', 'emailBlock', 'music', 'cPhotos'
   ].concat(CARD_IDS).forEach(function (id) { ui[id] = $(id); });
 
   // Shown on the language screen, so in both languages at once
@@ -241,6 +244,9 @@
   var video = ui.film;
   var params = new URLSearchParams(location.search);
   var reviewEnabled = params.get('review') === '1' || (params.has('t') && params.get('review') !== '0');
+  // The card-photo layout editor: only on this Mac (opened from disk or a local server), never for guests.
+  var EDIT = params.get('layout') === 'edit' &&
+    (location.protocol === 'file:' || /^(localhost|127\.0\.0\.1|\[::1\])$/.test(location.hostname));
   var state = {
     started: false, reduced: false, lang: 'en', phase: 'gate',   // gate → playing → ended
     soundOn: true, ownPause: false, startT: 0, frameT: -1,
@@ -326,6 +332,7 @@
     s.left = x + 'px'; s.top = y0 + 'px'; s.width = cardBox.w + 'px'; s.height = cardBox.h + 'px';
     buildBorder(cardBox.w, cardBox.h);
     fitCard();
+    placePhotos();
     state.layoutV++;
   }
 
@@ -404,6 +411,162 @@
     return '<svg viewBox="0 0 120 120" aria-hidden="true" focusable="false">' + out.join('') + '</svg>';
   }
   ui.cMono.innerHTML = wreathSVG();
+
+  // ---------- Photos pasted on the card (card-photos.js) ----------
+  function copyPhotos(list) {
+    return (list || []).map(function (p) {
+      return { id: p.id, src: p.src, en: p.en, zh: p.zh, cx: +p.cx, cy: +p.cy, w: +p.w, r: +p.r || 0, show: p.show !== false };
+    });
+  }
+  var PHOTOS = copyPhotos(window.CARD_PHOTOS), photoEls = [];
+  function buildPhotos() {
+    ui.cPhotos.textContent = '';
+    photoEls = PHOTOS.map(function (p) {
+      var fig = el('figure', 'c-photo'), img = el('img');
+      img.src = p.src;
+      img.alt = '';
+      img.decoding = 'async';
+      img.draggable = false;
+      fig.appendChild(img);
+      ui.cPhotos.appendChild(fig);
+      return { fig: fig, img: img, p: p, shown: -1, base: '' };
+    });
+    placePhotos();
+  }
+  // Photo sizes are set on a card of this shape (width / height). On a wider or shorter card (a phone
+  // held sideways), they shrink to keep the same share of the card's height, so they don't cover the words.
+  var PHOTO_REF_ASPECT = 0.66;
+  // The layout is set on a wide card. On a narrow one (a phone) the words fill more of the card, so a photo
+  // that would come closer than PHOTO_GAP card pixels to them first slides further into its corner (staying
+  // PHOTO_EDGE inside the card's edge), then shrinks, each only as much as needed. A photo that would need to
+  // be smaller than PHOTO_MIN of its size is left out on that screen.
+  var PHOTO_GAP = 6, PHOTO_EDGE = 8, PHOTO_MIN = 0.55;
+  function photoScale() {
+    return cardBox.w > 0 && cardBox.h > 0 ? Math.min(1, cardBox.h * PHOTO_REF_ASPECT / cardBox.w) : 1;
+  }
+
+  // Outlines of everything printed on the card, in card pixels: each line of text, the rules above and
+  // below the day and month, the ornament rule, and the round wreath. Measured with the paper laid flat for
+  // an instant (the next frame puts its perspective back).
+  function wordShapes() {
+    var paper = ui.paper, saved = paper.style.transform, shapes = [];
+    paper.style.transform = 'none';
+    var c = ui.card.getBoundingClientRect();
+    function box(l, t, r, b) { shapes.push([[l - c.left, t - c.top], [r - c.left, t - c.top], [r - c.left, b - c.top], [l - c.left, b - c.top]]); }
+    function boxes(list) {
+      Array.prototype.forEach.call(list, function (r) { if (r.width > 0.5 && r.height > 0.5) box(r.left, r.top, r.right, r.bottom); });
+    }
+    Array.prototype.forEach.call(ui.cInner.children, function (node) {
+      if (!node.getClientRects().length) return;                    // not shown on this card (compact)
+      var svg = node.querySelector('svg');
+      if (svg) {
+        var bb = svg.getBBox(), r = svg.getBoundingClientRect(), vb = svg.viewBox.baseVal;
+        var k = Math.min(r.width / vb.width, r.height / vb.height);
+        var x = r.left + (r.width - vb.width * k) / 2 + (bb.x - vb.x) * k, y = r.top + (r.height - vb.height * k) / 2 + (bb.y - vb.y) * k;
+        if (node !== ui.cMono) { box(x, y, x + bb.width * k, y + bb.height * k); return; }
+        var cx = x + bb.width * k / 2 - c.left, cy = y + bb.height * k / 2 - c.top;
+        var R = Math.max(bb.width, bb.height) * k / 2 / Math.cos(Math.PI / 12), ring = [];
+        for (var i = 0; i < 12; i++) ring.push([cx + R * Math.cos(i * Math.PI / 6), cy + R * Math.sin(i * Math.PI / 6)]);
+        shapes.push(ring);
+        return;
+      }
+      var walk = document.createTreeWalker(node, NodeFilter.SHOW_TEXT), range = document.createRange(), t;
+      while ((t = walk.nextNode())) { range.selectNodeContents(t); boxes(range.getClientRects()); }
+      Array.prototype.forEach.call(node.querySelectorAll('*'), function (e) {
+        if (parseFloat(getComputedStyle(e).borderTopWidth) > 0) boxes(e.getClientRects());
+      });
+    });
+    paper.style.transform = saved;
+    return shapes;
+  }
+
+  // Distance between two convex outlines; 0 when they touch or overlap.
+  function polyGap(A, B) {
+    function apart(P) {                    // the widest gap between A and B across P's edges
+      var best = -Infinity;
+      for (var i = 0; i < P.length; i++) {
+        var a = P[i], b = P[(i + 1) % P.length], nx = a[1] - b[1], ny = b[0] - a[0], n = Math.hypot(nx, ny) || 1;
+        var lo = [Infinity, Infinity], hi = [-Infinity, -Infinity];
+        [A, B].forEach(function (Q, j) {
+          Q.forEach(function (q) { var v = (q[0] * nx + q[1] * ny) / n; lo[j] = Math.min(lo[j], v); hi[j] = Math.max(hi[j], v); });
+        });
+        best = Math.max(best, lo[1] - hi[0], lo[0] - hi[1]);
+      }
+      return best;
+    }
+    if (Math.max(apart(A), apart(B)) <= 0) return 0;
+    function toEdge(p, a, b) {
+      var dx = b[0] - a[0], dy = b[1] - a[1], t = ((p[0] - a[0]) * dx + (p[1] - a[1]) * dy) / (dx * dx + dy * dy || 1);
+      t = Math.max(0, Math.min(1, t));
+      return Math.hypot(a[0] + t * dx - p[0], a[1] + t * dy - p[1]);
+    }
+    var m = Infinity;
+    [[A, B], [B, A]].forEach(function (pair) {
+      pair[0].forEach(function (p) {
+        pair[1].forEach(function (a, i, Q) { m = Math.min(m, toEdge(p, a, Q[(i + 1) % Q.length])); });
+      });
+    });
+    return m;
+  }
+
+  // Where a photo (d card pixels wide) goes so it clears the words: { s: size as a share of the layout's,
+  // cx, cy: its new centre }. { s: 1 } with the same centre = as laid out; { s: 0 } = it can't clear them.
+  function fitPhoto(p, d, shapes) {
+    var W = cardBox.w, H = cardBox.h, a = p.r * Math.PI / 180, cos = Math.cos(a), sin = Math.sin(a), cx = p.cx * W, cy = p.cy * H;
+    var V = [[-1, -1], [1, -1], [1, 1], [-1, 1]].map(function (s) {
+      var x = s[0] * d / 2, y = s[1] * d / 2;
+      return [cx + x * cos - y * sin, cy + x * sin + y * cos];
+    });
+    var left = p.cx < 0.5, top = p.cy < 0.5, X = left ? 0 : W, Y = top ? 0 : H, F = V[0];   // F: its corner nearest the card's corner
+    V.forEach(function (v) { if (Math.hypot(v[0] - X, v[1] - Y) < Math.hypot(F[0] - X, F[1] - Y)) F = v; });
+    function at(s, t) {                     // shrunk to s towards F, then moved the share t of the way into the corner
+      var P = V.map(function (v) { return [F[0] + s * (v[0] - F[0]), F[1] + s * (v[1] - F[1])]; });
+      var xs = P.map(function (q) { return q[0]; }), ys = P.map(function (q) { return q[1]; });
+      var mx = Math.max(0, left ? Math.min.apply(null, xs) - PHOTO_EDGE : W - PHOTO_EDGE - Math.max.apply(null, xs));
+      var my = Math.max(0, top ? Math.min.apply(null, ys) - PHOTO_EDGE : H - PHOTO_EDGE - Math.max.apply(null, ys));
+      return P.map(function (q) { return [q[0] + (left ? -mx : mx) * t, q[1] + (top ? -my : my) * t]; });
+    }
+    function clear(s, t) {
+      var P = at(s, t);
+      return shapes.every(function (q) { return polyGap(P, q) >= PHOTO_GAP; });
+    }
+    // Binary search between a value known to work (good) and one that doesn't (bad).
+    function closest(good, bad, ok) {
+      for (var i = 0; i < 10; i++) { var mid = (good + bad) / 2; if (ok(mid)) good = mid; else bad = mid; }
+      return good;
+    }
+    var s = 1, t = 0;
+    if (!clear(1, 0)) {
+      if (clear(1, 1)) t = closest(1, 0, function (v) { return clear(1, v); });            // the least move that clears
+      else if (clear(PHOTO_MIN, 1)) { s = closest(PHOTO_MIN, 1, function (v) { return clear(v, 1); }); t = 1; }
+      else return { s: 0 };
+    }
+    var P = at(s, t);
+    return { s: s, cx: (P[0][0] + P[2][0]) / 2 / W, cy: (P[0][1] + P[2][1]) / 2 / H };
+  }
+
+  function placePhotos() {
+    var any = false, k = photoScale();
+    var shapes = state.started && !state.flat ? wordShapes() : null;   // while editing, show the layout exactly as set
+    photoEls.forEach(function (e) {
+      var p = e.p, g = { s: 1, cx: p.cx, cy: p.cy };
+      if (p.show) {
+        any = true;
+        if (shapes) g = fitPhoto(p, p.w * k * cardBox.w, shapes);
+      }
+      e.fit = g.s;
+      e.fig.hidden = !p.show || !g.s;
+      if (!e.fig.hidden) {
+        e.fig.style.left = (g.cx * 100) + '%';
+        e.fig.style.top = (g.cy * 100) + '%';
+        e.fig.style.width = (p.w * k * g.s * 100) + '%';
+      }
+      e.base = 'translate(-50%, -50%) rotate(' + p.r + 'deg)';
+      e.shown = -1;                         // apply the new transform on the next frame
+    });
+    ui.card.classList.toggle('has-photos', any);
+  }
+  buildPhotos();
   ui.cRule.innerHTML = '<svg viewBox="0 0 96 10" aria-hidden="true" focusable="false"><path class="r-line" d="M2 5H37M59 5H94"/>' +
     '<circle class="r-orn" cx="41" cy="5" r="1"/><circle class="r-orn" cx="55" cy="5" r="1"/><path class="r-orn" d="M48 1.4L51.6 5 48 8.6 44.4 5z"/></svg>';
 
@@ -432,13 +595,21 @@
     var f = t * FILM.fps;
     paperOk = state.started && f >= FILM.paper.first - 0.5;
     if (paperOk) {
-      var key = f.toFixed(2) + '|' + state.layoutV + '|' + ui.stage.clientWidth + 'x' + ui.stage.clientHeight;
+      var key = (state.flat ? 'flat' : f.toFixed(2)) + '|' + state.layoutV + '|' + ui.stage.clientWidth + 'x' + ui.stage.clientHeight;
       if (key !== lastQuad) {
         lastQuad = key;
-        ui.paper.style.transform = cssMatrix(homography(PW, PH, toScreen(quadAt(f), cover())));
+        ui.paper.style.transform = state.flat ? flatTransform() : cssMatrix(homography(PW, PH, toScreen(quadAt(f), cover())));
       }
     }
     for (var i = 0; i < CARD_IDS.length; i++) setOpacity(CARD_IDS[i], paperOk ? fade(t, FADES[CARD_IDS[i]]) : 0);
+    for (var k = 0; k < photoEls.length; k++) {
+      var pe = photoEls[k], pa = paperOk ? Math.round(fade(t, PHOTO_FADES[k % PHOTO_FADES.length]) * 1000) / 1000 : 0;
+      if (pe.shown !== pa) {
+        pe.shown = pa;
+        pe.fig.style.opacity = pa;
+        pe.fig.style.transform = pe.base + ' scale(' + (1.06 - 0.06 * pa).toFixed(3) + ')';   // settles onto the paper
+      }
+    }
     var b = paperOk ? Math.round(fade(t, FADES.border) * 1000) / 1000 : 0;
     if (b !== lastBorder) {
       lastBorder = b;
@@ -594,7 +765,7 @@
     ui.cDay.textContent = s.day; ui.cNum.textContent = s.num; ui.cMonth.textContent = s.month;
     ui.cPlace.textContent = s.place;
     ui.cDetails.textContent = s.details;
-    ui.cRsvp.textContent = s.rsvpLine;
+    ui.cRsvp.textContent = ui.card.classList.contains('has-photos') ? s.rsvpLineStacked : s.rsvpLine;
   }
   function applyLang(lang) {
     var s = STR[lang];
@@ -604,6 +775,7 @@
     ui.introNames.textContent = s.introNames;
     ui.introLine.textContent = s.introLine;
     fillCard(s);
+    photoEls.forEach(function (e) { e.img.alt = e.p[lang] || ''; });
     ui.skipBtn.textContent = s.skip;
     ui.replyChip.textContent = s.replyChip;
     ui.resumeBtn.textContent = s.resume;
@@ -1087,6 +1259,166 @@
   ui.rvClose.addEventListener('click', function () { setReview(false); ui.reviewBtn.focus(); });
   ui.reviewBtn.addEventListener('click', function () { setReview(!state.review); });
 
+  // ---------- Card photo layout editor (?layout=edit, only on this Mac) ----------
+  // Shows the card flat and enlarged. Drag a photo to move it, its corner dot to resize, its top dot
+  // to tilt (arrow keys, + / - and [ / ] work too). "Save layout" downloads a new card-photos.js.
+  function flatTransform() {
+    var W = ui.stage.clientWidth || window.innerWidth, H = ui.stage.clientHeight || window.innerHeight;
+    var bar = document.querySelector('.layout-editor'), top = (bar ? bar.offsetTop + bar.offsetHeight : 0) + 56;   // room for the tilt dots
+    var s = Math.max(0.25, Math.min((W - 48) / cardBox.w, (H - top - 28) / cardBox.h));
+    var tx = W / 2 - s * (cardBox.x + cardBox.w / 2), ty = top + (H - top - 8) / 2 - s * (cardBox.y + cardBox.h / 2);
+    return 'translate(' + tx.toFixed(1) + 'px, ' + ty.toFixed(1) + 'px) scale(' + s.toFixed(4) + ')';
+  }
+  var drag = null, selected = -1, LAYOUT_KEY = 'cardPhotosLayout';
+  function persistLayout() {
+    try { localStorage.setItem(LAYOUT_KEY, JSON.stringify(PHOTOS)); } catch (e) { /* private window: fine */ }
+  }
+  function selectPhoto(i) {
+    selected = i;
+    photoEls.forEach(function (e, j) { e.fig.classList.toggle('selected', j === i); });
+  }
+  function photoCentre(p) {
+    var r = ui.card.getBoundingClientRect();
+    return { x: r.left + p.cx * r.width, y: r.top + p.cy * r.height, r: r };
+  }
+  function startDrag(e, i, mode) {
+    if (!state.flat) return;
+    e.preventDefault();
+    e.stopPropagation();
+    var p = PHOTOS[i];
+    drag = { i: i, mode: mode, id: e.pointerId, x0: e.clientX, y0: e.clientY, cx: p.cx, cy: p.cy, w: p.w, rect: ui.card.getBoundingClientRect() };
+    try { e.currentTarget.setPointerCapture(e.pointerId); } catch (err) { /* no live pointer (scripted event) */ }
+    selectPhoto(i);
+    photoEls[i].fig.focus({ preventScroll: true });
+  }
+  function moveDrag(e) {
+    if (!drag || e.pointerId !== drag.id) return;
+    var p = PHOTOS[drag.i], r = drag.rect;
+    if (drag.mode === 'move') {
+      p.cx = clamp(drag.cx + (e.clientX - drag.x0) / r.width, 0, 1);
+      p.cy = clamp(drag.cy + (e.clientY - drag.y0) / r.height, 0, 1);
+    } else {
+      var c = photoCentre(p);
+      if (drag.mode === 'resize') {        // distance from the centre sets the size, at any tilt
+        var d0 = Math.max(8, Math.hypot(drag.x0 - c.x, drag.y0 - c.y)), d1 = Math.hypot(e.clientX - c.x, e.clientY - c.y);
+        p.w = clamp(drag.w * d1 / d0, 0.08, 0.7);
+      } else {                             // the tilt handle points away from the centre
+        p.r = Math.round(((Math.atan2(e.clientY - c.y, e.clientX - c.x) * 180 / Math.PI + 90 + 540) % 360) - 180);
+      }
+    }
+    placePhotos();
+    kick();
+  }
+  function endDrag(e) {
+    if (drag && e.pointerId === drag.id) { drag = null; persistLayout(); }
+  }
+  function nudge(e) {
+    var i = photoEls.findIndex(function (x) { return x.fig === e.currentTarget; }), p = PHOTOS[i], step = e.shiftKey ? 0.02 : 0.005;
+    var keys = {
+      ArrowLeft: function () { p.cx = clamp(p.cx - step, 0, 1); }, ArrowRight: function () { p.cx = clamp(p.cx + step, 0, 1); },
+      ArrowUp: function () { p.cy = clamp(p.cy - step, 0, 1); }, ArrowDown: function () { p.cy = clamp(p.cy + step, 0, 1); },
+      '+': function () { p.w = clamp(p.w + 0.01, 0.08, 0.7); }, '=': function () { p.w = clamp(p.w + 0.01, 0.08, 0.7); },
+      '-': function () { p.w = clamp(p.w - 0.01, 0.08, 0.7); },
+      '[': function () { p.r -= 1; }, ']': function () { p.r += 1; }
+    };
+    if (!keys[e.key] || !state.flat) return;
+    e.preventDefault();
+    keys[e.key]();
+    selectPhoto(i);
+    placePhotos();
+    persistLayout();
+    kick();
+  }
+  function wirePhotos() {
+    photoEls.forEach(function (e, i) {
+      e.fig.tabIndex = 0;
+      e.fig.setAttribute('aria-label', e.p.en + '. Arrow keys move, plus and minus resize, square brackets tilt.');
+      ['resize', 'rotate'].forEach(function (mode) {
+        var h = el('span', 'ph-handle ph-' + mode);
+        h.addEventListener('pointerdown', function (ev) { startDrag(ev, i, mode); });
+        h.addEventListener('pointermove', moveDrag);
+        h.addEventListener('pointerup', endDrag);
+        h.addEventListener('pointercancel', endDrag);
+        e.fig.appendChild(h);
+      });
+      e.fig.addEventListener('pointerdown', function (ev) { startDrag(ev, i, 'move'); });
+      e.fig.addEventListener('pointermove', moveDrag);
+      e.fig.addEventListener('pointerup', endDrag);
+      e.fig.addEventListener('pointercancel', endDrag);
+      e.fig.addEventListener('keydown', nudge);
+    });
+  }
+  function saveLayout() {
+    var out = PHOTOS.map(function (p) {
+      return { id: p.id, src: p.src, en: p.en, zh: p.zh, cx: +p.cx.toFixed(3), cy: +p.cy.toFixed(3), w: +p.w.toFixed(3), r: Math.round(p.r), show: p.show };
+    });
+    var text = '/* Photos pasted on the invitation card.\n' +
+      '   To rearrange them, open the invitation on this Mac with ?layout=edit at the end of the address,\n' +
+      '   drag the photos, and press Save layout: it downloads a new card-photos.js to replace this file.\n' +
+      '   Positions are fractions of the card: cx and cy = the photo\'s centre, w = its width, r = its tilt in degrees. */\n' +
+      'window.CARD_PHOTOS = [\n' + out.map(function (p) { return '  ' + JSON.stringify(p); }).join(',\n') + '\n];\n';
+    var a = el('a');
+    a.href = URL.createObjectURL(new Blob([text], { type: 'text/javascript' }));
+    a.download = 'card-photos.js';
+    document.body.appendChild(a);
+    a.click();
+    setTimeout(function () { URL.revokeObjectURL(a.href); a.remove(); }, 1000);
+    persistLayout();
+    toast('Saved: card-photos.js is in your Downloads folder.');
+  }
+  function startEditor() {
+    state.flat = true;
+    document.documentElement.classList.add('layout-editing', 'flat');
+    try {
+      var saved = JSON.parse(localStorage.getItem(LAYOUT_KEY) || 'null');
+      if (Array.isArray(saved) && saved.length === PHOTOS.length) PHOTOS = copyPhotos(saved);
+    } catch (e) { /* nothing saved yet */ }
+    buildPhotos();
+    wirePhotos();
+    var bar = el('div', 'layout-editor');
+    bar.setAttribute('role', 'region');
+    bar.setAttribute('aria-label', 'Card photo layout');
+    bar.innerHTML = '<div class="le-row"><strong>Card photos</strong><span class="le-shows"></span><span class="le-buttons">' +
+      '<button type="button" data-act="view">See it on the paper</button><button type="button" data-act="reset">Reset</button>' +
+      '<button type="button" class="primary" data-act="save">Save layout</button></span></div>' +
+      '<div class="le-tip">Drag a photo to move it · its corner dot resizes · its top dot tilts · arrow keys nudge · untick to hide</div>' +
+      (window.innerWidth < 640 || window.innerHeight < 560
+        ? '<div class="le-tip le-small">This window is small. For easier editing, open this page in a full-size browser window.</div>' : '');
+    var shows = bar.querySelector('.le-shows'), SHORT = { 'asahiyama-zoo': 'Zoo', 'sapporo': 'Sapporo', 'lake-toya': 'Lake Toya', 'tenguyama-proposal': 'Tenguyama' };
+    PHOTOS.forEach(function (p, i) {
+      var label = el('label'), box = el('input');
+      box.type = 'checkbox';
+      box.checked = p.show;
+      box.addEventListener('change', function () { PHOTOS[i].show = box.checked; placePhotos(); persistLayout(); kick(); });
+      label.appendChild(box);
+      label.appendChild(document.createTextNode(SHORT[p.id] || p.en.split(',')[0]));
+      shows.appendChild(label);
+    });
+    bar.addEventListener('click', function (ev) {
+      var act = ev.target.getAttribute && ev.target.getAttribute('data-act');
+      if (act === 'save') saveLayout();
+      if (act === 'reset') {
+        PHOTOS = copyPhotos(window.CARD_PHOTOS);
+        buildPhotos();
+        wirePhotos();
+        Array.prototype.forEach.call(shows.querySelectorAll('input'), function (b, i) { b.checked = PHOTOS[i].show; });
+        persistLayout();
+      }
+      if (act === 'view') {
+        state.flat = !state.flat;
+        document.documentElement.classList.toggle('flat', state.flat);
+        ev.target.textContent = state.flat ? 'See it on the paper' : 'Back to editing';
+        if (!state.flat) selectPhoto(-1);
+        placePhotos();                      // on the paper, photos clear the words as they will for guests
+      }
+      lastQuad = '';
+      kick();
+    });
+    document.body.appendChild(bar);
+    lastQuad = '';
+    kick();
+  }
+
   // ---------- Buttons ----------
   var toastTimer = 0;
   function toast(msg) {
@@ -1143,6 +1475,9 @@
 
   if (editToken) {
     openFromLink(editToken);
+  } else if (EDIT) {
+    begin(params.get('lang') === 'zh' ? 'zh' : 'en', END);
+    startEditor();
   } else {
     var lang = params.get('lang') === 'zh' ? 'zh' : params.get('lang') === 'en' ? 'en' : '';
     var at = params.get('t');

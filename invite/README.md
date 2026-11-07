@@ -56,6 +56,37 @@ All timings are in `invite.js` (`FADES`).
 - **Not in the public GitHub repository:** these are commercial recordings. The file is published to the live site only, and the GitHub preview has no music. Keep the original MP3s.
 - **Licensing:** playing commercial recordings on a public website normally needs permission from the rights holders. A licensed or royalty-free track avoids that question.
 
+## Photos on the card
+
+Four illustrations are pasted on the card like small prints, each with a white border and a slight tilt:
+- the penguins at Asahiyama Zoo
+- Odori Park in Sapporo
+- Lake Toya
+- the proposal on Tenguyama
+
+They settle onto the paper one by one as the invitation appears.
+
+- **Files:** `media/memories/*.jpg`, square, 512 px, about 40–90 KB each. The originals are in `../references/memories/`.
+- **Layout:** `card-photos.js` stores each photo's centre, width and tilt as fractions of the card, so the layout fits every screen size.
+- **On phones:** the card is narrower than on a computer, so the words fill more of it.
+  - Where a photo would come within a few pixels of the words, it first slides further into its corner (staying inside the border), then shrinks only if sliding isn't enough.
+  - A photo that would need to be smaller than about half size is left out on that screen. No photo is left out on any of the 19 sizes tested.
+  - **Tested:** 19 screen sizes from a 320-pixel-wide phone to a 1920×1080 screen, in English and Chinese.
+    - On computers, and on a 768×1024 iPad, the photos sit exactly where you put them.
+    - On most phones (iPhone mini to Pro Max, Pixel, 360×800 Android) all four keep their full size and only move.
+    - On smaller screens (iPhone SE, small Android phones, in-app browsers) and on an 820×1180 iPad, some shrink to between 80% and 97% of their size, mostly the lower two.
+  - The settings are `PHOTO_GAP`, `PHOTO_EDGE` and `PHOTO_MIN` in `invite.js`.
+- **The reply line:** with photos on the card, it is set on two lines ("Kindly reply / by 17 June 2027"), so it fits between the lower photos.
+- **Editing the layout on this Mac:**
+  1. Open the invitation with `?layout=edit` at the end of the address. This works with:
+     - the local server, as in `../backend` `npm run dev` → http://127.0.0.1:8787/?layout=edit
+     - opening `index.html?layout=edit` from disk
+  2. Drag a photo to move it, its corner dot to resize, or its top dot to tilt. Arrow keys nudge, `+`/`-` resize and `[`/`]` tilt.
+  3. Untick a photo to hide it.
+  4. **See it on the paper** previews the real view. While editing, the photos show exactly as laid out; on the paper, they make room for the words the way they will on a guest's screen of the same size.
+  5. **Save layout** downloads a new `card-photos.js`. Put it in place of this one, then publish.
+- **Who sees the editor:** it only switches on when the page is opened from disk or from `localhost`, so guests never see it.
+
 ## The invitation card (draft wording)
 
 | English | 简体中文 |
