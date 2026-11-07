@@ -319,6 +319,32 @@ test('one address sending too many requests is slowed down', async () => {
   assert.deepEqual(codes.slice(30), [429, 429]);
 });
 
+test('the film answers partial requests exactly, as iPhones need', async () => {
+  const film = readFileSync(new URL('../../invite/media/invite.mp4', import.meta.url));
+  const size = film.length;
+  const get = async (range, method = 'GET') => {
+    const res = await fetch(BASE + '/media/invite.mp4', { method, headers: range ? { Range: range } : {} });
+    return { status: res.status, h: res.headers, body: Buffer.from(await res.arrayBuffer()) };
+  };
+  const whole = await get(null);
+  assert.equal(whole.status, 200);
+  assert.equal(whole.h.get('accept-ranges'), 'bytes');
+  assert.ok(whole.body.equals(film));
+  for (const [range, from, to] of [['bytes=0-1', 0, 1], ['bytes=1000-1999', 1000, 1999], [`bytes=${size - 100}-`, size - 100, size - 1],
+    ['bytes=-500', size - 500, size - 1], [`bytes=5000000-${size + 999}`, 5000000, size - 1]]) {
+    const r = await get(range);
+    assert.equal(r.status, 206, range);
+    assert.equal(r.h.get('content-range'), `bytes ${from}-${to}/${size}`);
+    assert.ok(r.body.equals(film.subarray(from, to + 1)), range + ' returns exactly those bytes');
+  }
+  const bad = await get(`bytes=${size}-`);
+  assert.equal(bad.status, 416);
+  assert.equal(bad.h.get('content-range'), `bytes */${size}`);
+  const head = await get('bytes=0-99', 'HEAD');
+  assert.equal(head.status, 206);
+  assert.equal(head.h.get('content-length'), '100');
+});
+
 test('the test outbox and test clock only exist on this computer', async () => {
   const out = await call('GET', '/api/dev/outbox');
   assert.equal(out.status, 200);

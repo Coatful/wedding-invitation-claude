@@ -34,6 +34,7 @@ function json(status, body) {
 export default {
   async fetch(request, env, ctx) {
     const url = new URL(request.url);
+    if (url.pathname.startsWith('/media/') && url.pathname.endsWith('.mp4')) return serveFilm(request, env, url);
     if (!url.pathname.startsWith('/api/')) {
       return new Response('Not found', { status: 404, headers: { 'Content-Type': 'text/plain; charset=utf-8', ...SECURITY_HEADERS } });
     }
@@ -130,6 +131,77 @@ async function rateLimit(request, env, s, now) {
     await env.DB.prepare('DELETE FROM rate_limits WHERE expires_at < ?1').bind(Math.floor(now / 1000)).run();
   }
   if (row && row.count > s.rateLimit) throw new HttpError(429, 'rate_limited');
+}
+
+// ---------- The film, with byte ranges ----------
+// iPhones (Safari) only play video from servers that answer partial requests ("Range: bytes=…")
+// with 206 Partial Content. Cloudflare's static file serving answers every request with the whole
+// file, so .mp4 files are routed here (run_worker_first in wrangler.jsonc) and sliced on the way out.
+async function serveFilm(request, env, url) {
+  if (request.method !== 'GET' && request.method !== 'HEAD') return new Response(null, { status: 405, headers: { Allow: 'GET, HEAD' } });
+  const asset = await env.ASSETS.fetch(new Request(url.toString(), { method: 'GET' }));
+  if (!asset.ok || !asset.body) return asset;
+  const headers = new Headers(asset.headers);
+  headers.set('Accept-Ranges', 'bytes');
+  headers.set('X-Content-Type-Options', 'nosniff');
+  // Live, the file's length comes with it and the bytes are streamed. If it doesn't (local testing),
+  // read the file whole instead.
+  let size = Number(asset.headers.get('Content-Length')), whole = null;
+  if (!Number.isFinite(size) || size <= 0) {
+    whole = new Uint8Array(await asset.arrayBuffer());
+    size = whole.byteLength;
+    headers.set('Content-Length', String(size));
+  }
+  const drop = async () => { if (!whole) await asset.body.cancel(); };
+  const m = /^bytes=(\d*)-(\d*)$/.exec((request.headers.get('Range') || '').trim());
+  if (!m || (m[1] === '' && m[2] === '')) {
+    if (request.method === 'HEAD') { await drop(); return new Response(null, { status: 200, headers }); }
+    return new Response(whole || asset.body, { status: 200, headers });
+  }
+  let start, end;
+  if (m[1] === '') {                               // the last N bytes
+    start = Math.max(0, size - Number(m[2]));
+    end = size - 1;
+  } else {
+    start = Number(m[1]);
+    end = m[2] === '' ? size - 1 : Math.min(Number(m[2]), size - 1);
+  }
+  if (start >= size || start > end) {
+    await drop();
+    headers.set('Content-Range', `bytes */${size}`);
+    headers.delete('Content-Length');
+    return new Response(null, { status: 416, headers });
+  }
+  const length = end - start + 1;
+  headers.set('Content-Range', `bytes ${start}-${end}/${size}`);
+  headers.set('Content-Length', String(length));
+  if (request.method === 'HEAD') { await drop(); return new Response(null, { status: 206, headers }); }
+  if (whole) return new Response(whole.subarray(start, end + 1), { status: 206, headers });
+  const { readable, writable } = new FixedLengthStream(length);
+  sliceStream(asset.body, start, end + 1).pipeTo(writable).catch(() => { /* the viewer stopped loading */ });
+  return new Response(readable, { status: 206, headers });
+}
+
+// Passes on only bytes [from, to) of a stream.
+export function sliceStream(body, from, to) {
+  const reader = body.getReader();
+  let pos = 0;
+  return new ReadableStream({
+    async pull(controller) {
+      for (;;) {
+        const { done, value } = await reader.read();
+        if (done) { controller.close(); return; }
+        const chunkStart = pos;
+        pos += value.byteLength;
+        if (pos <= from) continue;                 // still before the requested part
+        const a = Math.max(0, from - chunkStart), b = Math.min(value.byteLength, to - chunkStart);
+        if (b > a) controller.enqueue(value.subarray(a, b));
+        if (pos >= to) { controller.close(); await reader.cancel(); }
+        return;
+      }
+    },
+    cancel(reason) { return reader.cancel(reason); }
+  });
 }
 
 // ---------- Local testing only ----------

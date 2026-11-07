@@ -225,7 +225,7 @@
     'email', 'emailNote', 'emailError', 'toReview', 'rsvpReview', 'reviewTitle', 'reviewList', 'reviewEmail',
     'privacyNote', 'backToEdit', 'saveBtn', 'rsvpDone', 'doneBanner', 'doneTitle', 'doneLead', 'doneList',
     'doneNext', 'editAgain', 'doneClose', 'gate', 'reduceMotion', 'loadStatus', 'website', 'saveError', 'doneMeta',
-    'rsvpNotice', 'noticeTitle', 'noticeText', 'noticeList', 'noticeClose'
+    'rsvpNotice', 'noticeTitle', 'noticeText', 'noticeList', 'noticeClose', 'emailBlock'
   ].concat(CARD_IDS).forEach(function (id) { ui[id] = $(id); });
 
   // Shown on the language screen, so in both languages at once
@@ -903,11 +903,18 @@
         api.status = r.json && r.json.ok ? r.json : { none: true };
         if (api.status.maxPeople) MAX_PEOPLE = api.status.maxPeople;
         updateNote();
+        updateEmailField();
         if (MAX_PEOPLE !== before) renderReply();
         return api.status;
       }, function () { return null; }).then(function (v) { api.pending = null; return v; });
     }
     return api.pending;
+  }
+  // The optional email field shows only where email copies can actually be sent (or in the preview).
+  function updateEmailField() {
+    var off = !!(api.status && api.status.emailCopies === false);
+    if (off) { ui.email.value = ''; delete reply.errors.email; }
+    show(ui.emailBlock, !off);
   }
   function updateNote() {
     var s = STR[state.lang], st = api.status;

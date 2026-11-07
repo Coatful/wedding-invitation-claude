@@ -10,7 +10,9 @@
   // (the original video, build tools, README) are not published.
   "assets": {
     "directory": "../invite",
-    "binding": "ASSETS"
+    "binding": "ASSETS",
+    // The film goes through src/worker.js, which answers partial requests (iPhones need them).
+    "run_worker_first": ["/media/*.mp4"]
   },
 
   "d1_databases": [
@@ -44,11 +46,42 @@
     // Set when Resend is connected, e.g. "Aloysius & Meixiang <rsvp@your-domain>".
     "EMAIL_FROM": "",
     "EMAIL_REPLY_TO": ""
-  }
+  },
 
   // Secrets are never written here. Locally they live in .dev.vars (made by `npm run setup`);
-  // live they are added with `wrangler secret put`: ADMIN_TOKEN, EMAIL_KEY, HASH_SALT, RESEND_API_KEY.
+  // live they are added with `wrangler secret put --env production`:
+  // ADMIN_TOKEN, EMAIL_KEY, HASH_SALT (and RESEND_API_KEY once a domain is set up for email copies).
 
   // Optional, off until approved: retry unsent email copies every 15 minutes.
-  // "triggers": { "crons": ["*/15 * * * *"] }
+  // "triggers": { "crons": ["*/15 * * * *"] },
+
+  // ---------- The live site: npx wrangler deploy --env production ----------
+  // Environments don't inherit bindings or vars, so they are repeated here.
+  "env": {
+    "production": {
+      "name": "wedding-replies",
+      "assets": { "directory": "../invite", "binding": "ASSETS", "run_worker_first": ["/media/*.mp4"] },
+      "d1_databases": [
+        {
+          "binding": "DB",
+          "database_name": "wedding-replies",
+          "database_id": "897bf98c-df65-4d7f-bac1-655da72319e5",
+          "migrations_dir": "migrations"
+        }
+      ],
+      "vars": {
+        "ENVIRONMENT": "production",
+        "SITE_URL": "https://wedding-replies.wedding-replies.workers.dev",
+        "EDITS_CLOSE_AT": "2027-06-18T00:00:00+08:00",
+        "FIRST_REPLIES_CLOSE_AT": "",
+        "MAX_PEOPLE": "12",
+        "SESSION_MINUTES": "30",
+        "ORGANIZER_LINK_DAYS": "7",
+        "EMAIL_EXPIRY_HOURS": "72",
+        "RATE_LIMIT": "30",
+        "EMAIL_FROM": "",
+        "EMAIL_REPLY_TO": ""
+      }
+    }
+  }
 }

@@ -13,6 +13,10 @@ import { processEmailJobs } from './email.js';
 const peopleJson = (people) => JSON.stringify(people.map((p) => ({ id: p.id, name: p.name, attending: p.attending })));
 const asIso = (ms) => (ms === null ? null : Number.isFinite(ms) ? iso(ms) : 'invalid');
 
+// Email copies work only with the encryption key and a way to send (Resend live, the test outbox locally).
+// Without them the page hides the email field, and an address that arrives anyway is ignored, not stored.
+const emailCopiesOn = (env, s) => Boolean(env.EMAIL_KEY && (env.RESEND_API_KEY || s.dev));
+
 export function status(env, s, now) {
   return {
     ok: true,
@@ -22,7 +26,7 @@ export function status(env, s, now) {
     firstRepliesCloseAt: asIso(s.firstRepliesCloseAt),
     editsCloseAt: asIso(s.editsCloseAt),
     maxPeople: s.maxPeople,
-    emailCopies: Boolean(env.EMAIL_KEY && (env.RESEND_API_KEY || s.dev))
+    emailCopies: emailCopiesOn(env, s)
   };
 }
 
@@ -59,6 +63,7 @@ async function replay(env, s, now, receipt, requestHash, authReplyId) {
 export async function createReply(request, env, ctx, s, now) {
   if (!isOpen(s.firstRepliesCloseAt, now)) throw new HttpError(403, 'replies_closed');
   const input = parseReplyBody(await readJson(request), s, { forUpdate: false });
+  if (!emailCopiesOn(env, s)) input.email = '';
   const requestHash = await sha256Hex(stableJson({
     op: 'create', lang: input.lang, email: input.email.toLowerCase(),
     people: input.people.map((p) => [p.name, p.attending])
@@ -137,6 +142,7 @@ export async function updateReply(request, env, ctx, s, now) {
   if (!auth) throw new HttpError(401, 'invalid_link');
   if (!canEdit(auth, s, now)) throw new HttpError(403, 'edits_closed');
   const input = parseReplyBody(await readJson(request), s, { forUpdate: true });
+  if (!emailCopiesOn(env, s)) input.email = '';
   const requestHash = await sha256Hex(stableJson({
     op: 'update', reply: auth.replyId, revision: input.revision, lang: input.lang, email: input.email.toLowerCase(),
     people: input.people.map((p) => [p.id, p.name, p.attending])

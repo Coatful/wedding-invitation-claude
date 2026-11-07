@@ -6,7 +6,15 @@ This folder stores replies for the invitation in `../invite`. It has three parts
 - **A private Google Sheet.** It is a read-only copy that a small script inside the Sheet refreshes every 5 minutes.
 - **Optional email copies.** These go out through Resend, from an address on your domain.
 
-**Status: built and tested on this Mac only.** Nothing is deployed. No Cloudflare, Resend or Google account is connected, no domain has been bought and no Sheet is shared. Everything in "Going live" below needs your OK first.
+**Status, 7 November 2026: live** at https://wedding-replies.wedding-replies.workers.dev.
+
+- **Where it runs:** Cloudflare's free Workers plan, with the database in Asia-Pacific. Replies saved there are real.
+- **Email copies are off.** The page hides the email field until a domain and Resend are set up.
+- **The Google Sheet isn't connected yet.** See "The Google Sheet" below.
+- **The admin key** for connecting the Sheet is in `.secrets/admin-token.txt`. It stays on this Mac only and is never committed.
+- **Not set up:** no domain has been bought and no Resend account exists.
+
+The GitHub Pages copy of the invitation is a preview only: it can't save replies.
 
 ## How a reply flows
 
@@ -104,7 +112,24 @@ The browser walk-through checks the real page:
 
 The wedding details in the email are in `src/event.js`, and the card text is in `../invite/invite.js`. The time, 5 to 9 pm, is provisional, so change both together.
 
-## Going live (each step needs your OK; none has been done)
+## Publishing a change
+
+```bash
+npx wrangler deploy --env production
+```
+
+This uses the live settings in the `env.production` section of `wrangler.jsonc`. Local testing (`npm run dev`) still uses the top-level settings.
+
+## Going live: the full list
+
+**Done on 7 November 2026:**
+- Steps 1 and 2 for Cloudflare only.
+- Step 3, with the database in Asia-Pacific.
+- Step 4, without email.
+- Step 5, without `RESEND_API_KEY`.
+- Step 7 on workers.dev.
+
+**Still to do:** the domain, Resend and the Sheet.
 
 1. **Accounts (you create them):**
    - A free Cloudflare account.
@@ -193,7 +218,7 @@ The Sheet can only connect to the live server. Google's computers can't reach th
 
 | File | What it is |
 |---|---|
-| `src/worker.js` | Routes, admin key check, rate limit, test outbox |
+| `src/worker.js` | Routes, admin key check, rate limit, test outbox. It also serves the film with byte ranges: iPhones need these, and Cloudflare's static file serving doesn't provide them. |
 | `src/replies.js` | Saving, reading and changing replies; the export and edit links for the Sheet |
 | `src/email.js` | Email copies: wording (EN/中文), sending through Resend, retries |
 | `src/validate.js`, `src/config.js`, `src/crypto.js`, `src/db.js`, `src/event.js` | Checks, settings and deadlines, encryption and IDs, shared reads, wedding details |
