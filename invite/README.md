@@ -99,12 +99,13 @@ python3 -E -P tools/build_media.py source/NEW-VIDEO.mp4 media
 
 - **Requirements:** ffmpeg (Homebrew) and Pillow.
 - **What the script makes:**
-  - `media/invite.mp4`: H.264 with the original sound, about 3.8 MB.
-  - The first and last frames as stills.
-  - The paper-tracking data.
+  - `media/invite.mp4`: H.264 with the original sound, about 10 MB. The 720p original is enlarged to 1080p and sharpened, because phones show only the middle of the film, greatly enlarged.
+  - The first and last frames as stills, enlarged and sharpened the same way.
+  - The paper-tracking data, measured on the original frames.
 - **Settings to check against new footage:**
   - `PAPER_LAST`: the sheet's corners on the new last frame.
   - `FOCUS_X`: where phones crop the picture.
+  - `OUTPUT_HEIGHT` and `SHARPEN`: the published size and the sharpening strength. If the new footage is already 1080p or larger, set `OUTPUT_HEIGHT = 0` and consider a lower `SHARPEN`.
 
 ## Known limits
 
@@ -118,4 +119,7 @@ python3 -E -P tools/build_media.py source/NEW-VIDEO.mp4 media
     - A dropped connection, the view after 17 June, closed replies and a broken link.
 - **Not tested:** real iPhones or Android phones, Safari, or the WhatsApp and WeChat in-app browsers.
 - **Soundtrack:** it is the video's own. Check it is what you want guests to hear.
-- **Phone sharpness:** the film is 1280×720 landscape, so phones show a cropped, enlarged slice. A vertical 1080×1920 render would look sharper on phones.
+- **Phone sharpness:** the original film is 1280×720 landscape, so phones show a cropped, enlarged slice.
+  - It is published enlarged to 1080p and sharpened, which brings out the detail the original has but can't add more.
+  - The fast camera move at 5–7.5 s is blurred in the original itself.
+  - A vertical 1080×1920 (or 4K) render from the video tool would be sharper still.
