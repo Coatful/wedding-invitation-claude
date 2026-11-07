@@ -16,7 +16,11 @@ This is a preview:
 
 - **On the Mac:** double-click `index.html` (Safari or Chrome). No server or internet connection is needed.
 - **On your phone,** while the Wi-Fi preview is running: http://192.168.88.14:8765/invite/
-- **Sound:** tapping a language starts the film with its own soundtrack. The speaker button mutes it. If a browser blocks sound, the film plays silently and the speaker button turns it on.
+- **Music:** tapping a language starts the music: *Heartbeat*, then *A Walk in the Skies*, on a loop.
+  - It carries on after the film, and the film itself is silent.
+  - The speaker button turns it off and on.
+  - It pauses while the guest is in another app or tab.
+  - Opened from an edit link, the music waits until the speaker is tapped, because browsers only allow sound after a tap.
 - **Available during the film:**
   - **Skip intro / 跳过开场** jumps to the finished card.
   - **Reply / 回复** jumps there and opens the form.
@@ -41,6 +45,16 @@ All timings are in `invite.js` (`FADES`).
 - **Phones:** the film fills the screen, cropped to keep the couple centred.
 - **The invitation** is laid onto the paper in perspective, and follows the paper while the camera is still moving.
 - **Card layout:** the card's border and text are fitted to whatever part of the sheet each screen can see. On a phone held sideways, the monogram and divider drop away so the words stay readable.
+
+## Music
+
+- **Tracks:** *Heartbeat*, then *A Walk in the Skies*, both by Joe Hisaishi from the *Howl's Moving Castle* soundtrack.
+  - They are joined into one looping file, `media/soundtrack.m4a` (2.4 MB, AAC 128 kbps), so nothing has to load between pieces.
+  - The album's own balance between the pieces is kept. *A Walk in the Skies* starts softly and builds, as on the album.
+  - The pauses between the pieces, and before the loop restarts, are trimmed to about a second each.
+- **Making it again:** run `python3 -E -P tools/build_music.py media/soundtrack.m4a ".../04. Heartbeat.mp3" ".../03. A Walk in the Skies.mp3"`.
+- **Not in the public GitHub repository:** these are commercial recordings. The file is published to the live site only, and the GitHub preview has no music. Keep the original MP3s.
+- **Licensing:** playing commercial recordings on a public website normally needs permission from the rights holders. A licensed or royalty-free track avoids that question.
 
 ## The invitation card (draft wording)
 

@@ -22,6 +22,9 @@
   var END = FILM.duration;
   var PW = FILM.paper.size[0], PH = FILM.paper.size[1];
   var MAX_PEOPLE = 12;       // replaced by the reply server's MAX_PEOPLE setting when connected
+  // "Heartbeat" then "A Walk in the Skies", joined into one looping file by tools/build_music.py.
+  // It is not in the public GitHub repository, so the GitHub preview simply has no music.
+  var MUSIC_SRC = 'media/soundtrack.m4a';
   var PAD_X = 16, PAD_Y = 20; // .c-body padding in styles.css
   var SHOTS = [['Start', 0], ['Walk', 2.5], ['Arch', 5.6], ['Table', 7.0], ['Card', 8.4], ['End', END]];
 
@@ -225,7 +228,7 @@
     'email', 'emailNote', 'emailError', 'toReview', 'rsvpReview', 'reviewTitle', 'reviewList', 'reviewEmail',
     'privacyNote', 'backToEdit', 'saveBtn', 'rsvpDone', 'doneBanner', 'doneTitle', 'doneLead', 'doneList',
     'doneNext', 'editAgain', 'doneClose', 'gate', 'reduceMotion', 'loadStatus', 'website', 'saveError', 'doneMeta',
-    'rsvpNotice', 'noticeTitle', 'noticeText', 'noticeList', 'noticeClose', 'emailBlock'
+    'rsvpNotice', 'noticeTitle', 'noticeText', 'noticeList', 'noticeClose', 'emailBlock', 'music'
   ].concat(CARD_IDS).forEach(function (id) { ui[id] = $(id); });
 
   // Shown on the language screen, so in both languages at once
@@ -452,7 +455,7 @@
   function updateUI() {
     var on = state.started, ph = state.phase;
     show(ui.langBtn, on);
-    show(ui.soundBtn, on && ph === 'playing');
+    show(ui.soundBtn, on);                    // the music carries on after the film, so it can always be muted
     show(ui.reviewBtn, on && reviewEnabled);
     show(ui.replyChip, on && ph === 'playing');
     show(ui.skipBtn, on && ph === 'playing');
@@ -476,14 +479,42 @@
     video.requestVideoFrameCallback(onFrame);
   }
 
-  // ---------- Playback ----------
-  function setSound(on) {
-    state.soundOn = on;
-    video.muted = !on;
-    var s = STR[state.lang];
+  // ---------- Music ----------
+  // The film itself is always muted; the music is the soundtrack. It starts with the guest's tap on a
+  // language (browsers only allow sound after a tap), loops, and keeps going after the film ends.
+  var music = ui.music;
+  function renderSound() {
+    var s = STR[state.lang], on = state.soundOn;
     ui.soundBtn.innerHTML = on ? ICON_SOUND : ICON_MUTED;
     ui.soundBtn.setAttribute('aria-label', on ? s.soundOff : s.soundOn);
   }
+  function startMusic() {
+    if (!state.soundOn) return;
+    if (!music.getAttribute('src')) music.src = MUSIC_SRC;
+    var p = music.play();
+    if (p && p.catch) {
+      p.catch(function (err) {
+        if (err && err.name === 'AbortError') return;
+        state.soundOn = false;      // not allowed without a tap (e.g. an edit link), or no music file here
+        renderSound();
+      });
+    }
+  }
+  function setSound(on) {
+    state.soundOn = on;
+    renderSound();
+    if (on) startMusic(); else music.pause();
+  }
+  document.addEventListener('visibilitychange', function () {   // pause while the guest is in another app or tab
+    if (document.hidden) {
+      if (!music.paused) { state.musicAway = true; music.pause(); }
+    } else if (state.musicAway) {
+      state.musicAway = false;
+      startMusic();
+    }
+  });
+
+  // ---------- Playback ----------
   function playFromStart() {
     state.phase = 'playing';
     state.playedOnce = true;
@@ -493,14 +524,12 @@
     show(ui.resumeBtn, false);
     if (video.currentTime > 0) video.currentTime = 0;
     video.preload = 'auto';
-    video.muted = !state.soundOn;
-    var p = video.play();          // inside the tap, so sound is allowed
+    video.muted = true;            // the music is the soundtrack; a muted film may always play
+    var p = video.play();
     if (p && p.catch) {
-      p.catch(function (err) {     // sound blocked: try silently, then offer a button
+      p.catch(function (err) {     // e.g. a phone's low-power mode: offer a button
         if (state.phase !== 'playing' || (err && err.name === 'AbortError')) return;   // e.g. skipped
-        setSound(false);
-        var q = video.play();
-        if (q && q.catch) q.catch(function () { if (state.phase === 'playing') show(ui.resumeBtn, true); });
+        show(ui.resumeBtn, true);
       });
     }
     updateUI();
@@ -582,7 +611,7 @@
     ui.langBtn.textContent = s.langBtn;
     ui.langBtn.setAttribute('aria-label', s.langLabel);
     ui.langBtn.setAttribute('lang', lang === 'en' ? 'zh-Hans' : 'en');
-    setSound(state.soundOn);
+    renderSound();
     renderReply();
     if (state.started) layoutCard();
     updateUI();
@@ -593,6 +622,7 @@
   function begin(lang, at) {
     if (state.started) return;
     state.started = true;
+    startMusic();                             // first, while still inside the guest's tap
     state.reduced = ui.reduceMotion.checked;
     document.documentElement.classList.toggle('reduced', state.reduced);
     ui.gate.classList.add('hide');
@@ -1105,8 +1135,9 @@
   [video, ui.posterImg, ui.finalImg].forEach(function (m) { m.style.objectPosition = pos; });
   video.preload = ui.reduceMotion.checked || editToken ? 'metadata' : 'auto';
   video.poster = FILM.poster;
+  video.muted = true;
   video.src = FILM.src;
-  setSound(true);
+  renderSound();                     // sound is on by default; the music starts with the language tap
   applyLang('en');
   apiStatus();                       // is a reply server here? (sets the note under the Reply button)
 

@@ -345,6 +345,16 @@ test('the film answers partial requests exactly, as iPhones need', async () => {
   assert.equal(head.h.get('content-length'), '100');
 });
 
+test('the music answers partial requests too, when it is present', async (t) => {
+  const file = new URL('../../invite/media/soundtrack.m4a', import.meta.url);
+  let music;
+  try { music = readFileSync(file); } catch { t.skip('no soundtrack.m4a here (it is not in the repository)'); return; }
+  const res = await fetch(BASE + '/media/soundtrack.m4a', { headers: { Range: 'bytes=100-299' } });
+  assert.equal(res.status, 206);
+  assert.equal(res.headers.get('content-range'), `bytes 100-299/${music.length}`);
+  assert.ok(Buffer.from(await res.arrayBuffer()).equals(music.subarray(100, 300)));
+});
+
 test('the test outbox and test clock only exist on this computer', async () => {
   const out = await call('GET', '/api/dev/outbox');
   assert.equal(out.status, 200);

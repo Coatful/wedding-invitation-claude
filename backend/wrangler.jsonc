@@ -11,8 +11,8 @@
   "assets": {
     "directory": "../invite",
     "binding": "ASSETS",
-    // The film goes through src/worker.js, which answers partial requests (iPhones need them).
-    "run_worker_first": ["/media/*.mp4"]
+    // The film and music go through src/worker.js, which answers partial requests (iPhones need them).
+    "run_worker_first": ["/media/*.mp4", "/media/*.m4a"]
   },
 
   "d1_databases": [
@@ -60,7 +60,7 @@
   "env": {
     "production": {
       "name": "wedding-replies",
-      "assets": { "directory": "../invite", "binding": "ASSETS", "run_worker_first": ["/media/*.mp4"] },
+      "assets": { "directory": "../invite", "binding": "ASSETS", "run_worker_first": ["/media/*.mp4", "/media/*.m4a"] },
       "d1_databases": [
         {
           "binding": "DB",

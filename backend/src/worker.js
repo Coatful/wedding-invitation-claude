@@ -34,7 +34,7 @@ function json(status, body) {
 export default {
   async fetch(request, env, ctx) {
     const url = new URL(request.url);
-    if (url.pathname.startsWith('/media/') && url.pathname.endsWith('.mp4')) return serveFilm(request, env, url);
+    if (url.pathname.startsWith('/media/') && /\.(mp4|m4a)$/.test(url.pathname)) return serveFilm(request, env, url);
     if (!url.pathname.startsWith('/api/')) {
       return new Response('Not found', { status: 404, headers: { 'Content-Type': 'text/plain; charset=utf-8', ...SECURITY_HEADERS } });
     }
@@ -133,10 +133,10 @@ async function rateLimit(request, env, s, now) {
   if (row && row.count > s.rateLimit) throw new HttpError(429, 'rate_limited');
 }
 
-// ---------- The film, with byte ranges ----------
-// iPhones (Safari) only play video from servers that answer partial requests ("Range: bytes=…")
-// with 206 Partial Content. Cloudflare's static file serving answers every request with the whole
-// file, so .mp4 files are routed here (run_worker_first in wrangler.jsonc) and sliced on the way out.
+// ---------- The film and music, with byte ranges ----------
+// iPhones (Safari) only play video and audio from servers that answer partial requests
+// ("Range: bytes=…") with 206 Partial Content. Cloudflare's static file serving answers every request
+// with the whole file, so .mp4 and .m4a files are routed here (run_worker_first in wrangler.jsonc).
 async function serveFilm(request, env, url) {
   if (request.method !== 'GET' && request.method !== 'HEAD') return new Response(null, { status: 405, headers: { Allow: 'GET, HEAD' } });
   const asset = await env.ASSETS.fetch(new Request(url.toString(), { method: 'GET' }));

@@ -13,10 +13,12 @@
 
 <!-- The film, with its first and last frames as stills -->
 <div id="stage" class="stage" aria-hidden="true">
-  <video id="film" playsinline webkit-playsinline x5-playsinline x5-video-player-type="h5-page" x5-video-player-fullscreen="false" preload="auto" disablepictureinpicture disableremoteplayback></video>
+  <video id="film" muted playsinline webkit-playsinline x5-playsinline x5-video-player-type="h5-page" x5-video-player-fullscreen="false" preload="auto" disablepictureinpicture disableremoteplayback></video>
   <img id="posterImg" class="still" alt="">
   <img id="finalImg" class="still" alt="" hidden>
 </div>
+<!-- The music: starts when a language is chosen and loops (media/soundtrack.m4a, made by tools/build_music.py) -->
+<audio id="music" preload="none" loop></audio>
 
 <!-- The invitation, printed onto the blank sheet the film ends on -->
 <div id="paperLayer" class="paper-layer">
@@ -170,7 +172,7 @@
     </div>
     <p class="gate-sound">
       <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path class="i-fill" d="M4 9.5v5h3.6L12 18.6V5.4L7.6 9.5z"/><path class="i-line" d="M15.5 9a4.2 4.2 0 0 1 0 6M17.8 6.6a7.6 7.6 0 0 1 0 10.8"/></svg>
-      <span><span lang="en">A short film with sound plays first</span><span aria-hidden="true"> · </span><span lang="zh-Hans">将先播放一段有声短片</span></span>
+      <span><span lang="en">This invitation plays music</span><span aria-hidden="true"> · </span><span lang="zh-Hans">此请柬伴有音乐</span></span>
     </p>
     <label class="gate-motion">
       <input type="checkbox" id="reduceMotion">
