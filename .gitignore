@@ -1,0 +1,9 @@
+# Not part of this repository
+/milio-cinematic/
+/scroll/
+/animatic/
+# The original 15 MB film; invite/media holds the prepared versions
+/invite/source/
+# Tool settings for local previews
+/backend/.claude/
+.DS_Store

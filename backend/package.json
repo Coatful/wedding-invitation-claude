@@ -1,0 +1,16 @@
+{
+  "name": "wedding-replies",
+  "private": true,
+  "type": "module",
+  "description": "Reply backend for Aloysius & Meixiang's invitation: Cloudflare Worker + D1, private Google Sheet copy.",
+  "scripts": {
+    "setup": "node scripts/dev-secrets.mjs && wrangler d1 migrations apply wedding-replies --local",
+    "dev": "wrangler dev --ip 127.0.0.1 --port 8787",
+    "test:server": "rm -rf .wrangler/test-state && wrangler d1 migrations apply wedding-replies --local --persist-to .wrangler/test-state && wrangler dev --ip 127.0.0.1 --port 8788 --persist-to .wrangler/test-state --var FIRST_REPLIES_CLOSE_AT:2027-06-18T00:00:00+08:00 --var SITE_URL:http://127.0.0.1:8788",
+    "test": "node --test test/units.test.mjs test/sheet.test.mjs test/api.test.mjs",
+    "test:browser": "node scripts/browser-check.mjs"
+  },
+  "devDependencies": {
+    "wrangler": "4.152.0"
+  }
+}

@@ -1,0 +1,54 @@
+// Cloudflare configuration for the reply server and the invitation site.
+// Nothing here is deployed yet. Before going live (with your approval), see README.md → "Going live".
+{
+  "$schema": "./node_modules/wrangler/config-schema.json",
+  "name": "wedding-replies",
+  "main": "src/worker.js",
+  "compatibility_date": "2026-10-01",
+
+  // The invitation is served straight from ../invite. Files listed in ../invite/.assetsignore
+  // (the original video, build tools, README) are not published.
+  "assets": {
+    "directory": "../invite",
+    "binding": "ASSETS"
+  },
+
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "wedding-replies",
+      // Placeholder for local testing. `wrangler d1 create wedding-replies` prints the real ID at setup.
+      "database_id": "00000000-0000-0000-0000-000000000000",
+      "migrations_dir": "migrations"
+    }
+  ],
+
+  "vars": {
+    // "production" when live. "development" turns on the test outbox and the X-Dev-Now test clock (localhost only).
+    "ENVIRONMENT": "development",
+    // The address in emailed edit links, with no trailing slash.
+    "SITE_URL": "http://127.0.0.1:8787",
+
+    // Guests can change replies through 17 June 2027 (Singapore time).
+    "EDITS_CLOSE_AT": "2027-06-18T00:00:00+08:00",
+    // Whether first-time replies also close is still your decision. Empty = they stay open.
+    "FIRST_REPLIES_CLOSE_AT": "",
+
+    // Placeholder: most people in one reply (the real family-size policy is yours to set).
+    "MAX_PEOPLE": "12",
+    "SESSION_MINUTES": "30",       // "Edit reply" straight after saving works for this long
+    "ORGANIZER_LINK_DAYS": "7",    // links you make from the Sheet expire after this many days
+    "EMAIL_EXPIRY_HOURS": "72",    // an email copy that can't go out by then is given up and its address erased
+    "RATE_LIMIT": "30",            // guest requests per IP address per 10 minutes
+
+    // Set when Resend is connected, e.g. "Aloysius & Meixiang <rsvp@your-domain>".
+    "EMAIL_FROM": "",
+    "EMAIL_REPLY_TO": ""
+  }
+
+  // Secrets are never written here. Locally they live in .dev.vars (made by `npm run setup`);
+  // live they are added with `wrangler secret put`: ADMIN_TOKEN, EMAIL_KEY, HASH_SALT, RESEND_API_KEY.
+
+  // Optional, off until approved: retry unsent email copies every 15 minutes.
+  // "triggers": { "crons": ["*/15 * * * *"] }
+}

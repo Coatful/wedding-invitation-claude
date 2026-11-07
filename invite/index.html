@@ -1,0 +1,186 @@
+<!doctype html>
+<html lang="en-SG">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="robots" content="noindex, nofollow">
+<meta name="referrer" content="no-referrer">
+<meta name="theme-color" content="#bcd3ea">
+<title>Wedding invitation · preview</title>
+<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+
+<!-- The film, with its first and last frames as stills -->
+<div id="stage" class="stage" aria-hidden="true">
+  <video id="film" playsinline webkit-playsinline x5-playsinline x5-video-player-type="h5-page" x5-video-player-fullscreen="false" preload="auto" disablepictureinpicture disableremoteplayback></video>
+  <img id="posterImg" class="still" alt="">
+  <img id="finalImg" class="still" alt="" hidden>
+</div>
+
+<!-- The invitation, printed onto the blank sheet the film ends on -->
+<div id="paperLayer" class="paper-layer">
+  <section id="paper" class="paper" aria-labelledby="cNames">
+    <div id="card" class="card">
+      <svg id="cBorder" class="c-border" aria-hidden="true" focusable="false"></svg>
+      <div id="cBody" class="c-body">
+        <div id="cInner" class="c-inner">
+          <div id="cMono" class="c-mono" aria-hidden="true"></div>
+          <h1 id="cNames" class="c-names" tabindex="-1"></h1>
+          <p id="cRequest" class="c-request"></p>
+          <p id="cDate" class="c-date"><span id="cDay" class="c-day"></span><span id="cNum" class="c-num"></span><span id="cMonth" class="c-month"></span></p>
+          <p id="cPlace" class="c-place"></p>
+          <p id="cDetails" class="c-details"></p>
+          <div id="cRule" class="c-rule" aria-hidden="true"></div>
+          <p id="cRsvp" class="c-rsvp"></p>
+        </div>
+      </div>
+    </div>
+  </section>
+</div>
+
+<main id="ui" class="ui">
+  <p id="sceneDesc" class="sr-only"></p>
+
+  <div id="topbar" class="topbar">
+    <button id="langBtn" class="chip" type="button" hidden></button>
+    <button id="soundBtn" class="chip chip-icon" type="button" hidden></button>
+    <span class="topbar-gap"></span>
+    <button id="reviewBtn" class="chip chip-quiet" type="button" aria-expanded="false" aria-controls="review" hidden>Review</button>
+    <button id="replyChip" class="chip" type="button" hidden></button>
+    <button id="skipBtn" class="chip" type="button" hidden></button>
+    <button id="replayBtn" class="chip" type="button" hidden></button>
+  </div>
+
+  <div id="intro" class="intro" aria-hidden="true">
+    <p id="introNames" class="intro-names"></p>
+    <p id="introLine" class="intro-line"></p>
+  </div>
+
+  <div id="buffering" class="buffering" hidden aria-hidden="true"><span class="spinner"></span></div>
+  <button id="resumeBtn" class="resume" type="button" hidden></button>
+
+  <div id="endActions" class="end-actions">
+    <button id="replyBtn" class="btn btn-primary btn-reply" type="button"></button>
+    <p id="placeholderNote" class="placeholder-note"></p>
+  </div>
+
+  <div id="toast" class="toast" role="status" aria-live="polite"></div>
+</main>
+
+<!-- Review tools for the couple (add ?review=1 to the address; not part of the guest experience) -->
+<aside id="review" class="review" hidden aria-label="Review controls">
+  <div class="rv-row">
+    <button id="rvPlay" class="rv-btn" type="button">Pause</button>
+    <button id="rvRestart" class="rv-btn" type="button">Restart</button>
+    <button id="rvSpeed" class="rv-btn" type="button">Speed 1×</button>
+    <span id="rvTime" class="rv-time">0.0 / 10.0 s</span>
+  </div>
+  <input id="rvScrub" class="rv-scrub" type="range" min="0" max="10" step="0.04" value="0" aria-label="Film position in seconds">
+  <div id="rvShots" class="rv-shots"></div>
+  <div class="rv-row"><button id="rvClose" class="rv-btn" type="button">Close</button></div>
+</aside>
+
+<!-- Reply form (front-end preview: it sends and stores nothing) -->
+<div id="rsvp" class="rsvp" hidden>
+  <div id="rsvpBackdrop" class="rsvp-backdrop"></div>
+  <div id="rsvpSheet" class="rsvp-sheet" role="dialog" aria-modal="true" aria-labelledby="rsvpTitle">
+    <div class="rsvp-top">
+      <button id="rsvpLang" class="chip chip-small" type="button"></button>
+      <button id="rsvpClose" class="rsvp-close" type="button">
+        <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M6 6l12 12M18 6L6 18"/></svg>
+      </button>
+    </div>
+
+    <form id="rsvpForm" class="rsvp-view" novalidate>
+      <p id="rsvpEyebrow" class="rsvp-eyebrow"></p>
+      <h2 id="rsvpTitle" class="rsvp-title" tabindex="-1"></h2>
+      <p id="rsvpIntro" class="rsvp-intro"></p>
+      <div id="errorSummary" class="error-summary" role="alert" hidden></div>
+      <div id="people" class="people"></div>
+      <button id="addPerson" class="btn-add" type="button"></button>
+      <p id="maxNote" class="field-note" hidden></p>
+      <div class="email-block">
+        <label id="emailLabel" class="field-label" for="email"></label>
+        <div class="email-row">
+          <input id="email" class="input" type="email" inputmode="email" autocomplete="email" autocapitalize="off" spellcheck="false" maxlength="254" aria-describedby="emailNote emailError">
+          <p id="emailNote" class="field-note email-note"></p>
+        </div>
+        <p id="emailError" class="field-error" hidden></p>
+      </div>
+      <!-- Left empty by people; filled in by spam bots, whose replies are then refused -->
+      <div class="hp" aria-hidden="true">
+        <label for="website">Leave this empty</label>
+        <input id="website" name="url_confirm" type="text" tabindex="-1" autocomplete="off">
+      </div>
+      <div class="rsvp-actions">
+        <button id="toReview" class="btn btn-primary" type="submit"></button>
+      </div>
+    </form>
+
+    <section id="rsvpReview" class="rsvp-view" hidden aria-labelledby="reviewTitle">
+      <h2 id="reviewTitle" class="rsvp-title" tabindex="-1"></h2>
+      <ul id="reviewList" class="summary-list"></ul>
+      <p id="reviewEmail" class="summary-email"></p>
+      <p id="privacyNote" class="privacy-note"></p>
+      <p id="saveError" class="error-summary save-error" role="alert" hidden></p>
+      <div class="rsvp-actions">
+        <button id="backToEdit" class="btn btn-secondary" type="button"></button>
+        <button id="saveBtn" class="btn btn-primary" type="button"></button>
+      </div>
+    </section>
+
+    <section id="rsvpDone" class="rsvp-view" hidden aria-labelledby="doneTitle">
+      <p id="doneBanner" class="preview-banner"></p>
+      <h2 id="doneTitle" class="rsvp-title" tabindex="-1"></h2>
+      <p id="doneLead" class="rsvp-intro"></p>
+      <ul id="doneList" class="summary-list"></ul>
+      <p id="doneMeta" class="done-meta" hidden></p>
+      <p id="doneNext" class="privacy-note"></p>
+      <div class="rsvp-actions">
+        <button id="editAgain" class="btn btn-secondary" type="button"></button>
+        <button id="doneClose" class="btn btn-primary" type="button"></button>
+      </div>
+    </section>
+
+    <!-- Replies closed, or a saved reply shown read-only after guest changes close -->
+    <section id="rsvpNotice" class="rsvp-view" hidden aria-labelledby="noticeTitle">
+      <h2 id="noticeTitle" class="rsvp-title" tabindex="-1"></h2>
+      <p id="noticeText" class="rsvp-intro"></p>
+      <ul id="noticeList" class="summary-list" hidden></ul>
+      <div class="rsvp-actions">
+        <button id="noticeClose" class="btn btn-primary" type="button"></button>
+      </div>
+    </section>
+  </div>
+</div>
+
+<div id="gate" class="gate" role="dialog" aria-modal="true" aria-labelledby="gateTitle">
+  <div class="gate-card">
+    <p class="gate-eyebrow"><span lang="en">Invitation preview</span> · <span lang="zh-Hans">请柬预览</span></p>
+    <h1 id="gateTitle" class="gate-names">
+      <span lang="en">Aloysius &amp; Meixiang</span>
+      <span lang="zh-Hans" class="gate-zh">黄胤杰 与 魏美翔</span>
+    </h1>
+    <p class="gate-date">17 · 07 · 2027</p>
+    <p class="gate-prompt"><span lang="en">Choose your language</span><span aria-hidden="true"> · </span><span lang="zh-Hans">请选择语言</span></p>
+    <div class="gate-buttons">
+      <button class="btn btn-primary" type="button" data-lang="en" lang="en">English</button>
+      <button class="btn btn-secondary" type="button" data-lang="zh" lang="zh-Hans">简体中文</button>
+    </div>
+    <p class="gate-sound">
+      <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path class="i-fill" d="M4 9.5v5h3.6L12 18.6V5.4L7.6 9.5z"/><path class="i-line" d="M15.5 9a4.2 4.2 0 0 1 0 6M17.8 6.6a7.6 7.6 0 0 1 0 10.8"/></svg>
+      <span><span lang="en">A short film with sound plays first</span><span aria-hidden="true"> · </span><span lang="zh-Hans">将先播放一段有声短片</span></span>
+    </p>
+    <label class="gate-motion">
+      <input type="checkbox" id="reduceMotion">
+      <span><span lang="en">Reduce motion</span><span aria-hidden="true"> · </span><span lang="zh-Hans">减少动态效果</span></span>
+    </label>
+    <p id="loadStatus" class="gate-status" aria-live="polite"></p>
+  </div>
+</div>
+
+<script src="media/manifest.js"></script>
+<script src="invite.js"></script>
+</body>
+</html>
